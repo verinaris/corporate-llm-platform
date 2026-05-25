@@ -1,29 +1,22 @@
 """
-Pharma-Außendienst-Branche.
+Pharma-Außendienst-Branche — Phase 2c: lebendig!
 
-⚠️  GERÜST — INHALT WIRD IN PHASE 2 + 3 GEFÜLLT.
+Aktiv:
+- get_system_prompt() → HWG/AMG-konformer Branchen-Prompt
+- post_process_response() → Pflicht-Disclaimer wird automatisch angehängt
+- required_disclaimer → Disclaimer-Text auch separat abrufbar
 
-Geplante Implementierung:
-
-Phase 2:
-- get_system_prompt() → HWG-/AMG-konformer System-Prompt:
-  "Du unterstützt Pharma-Referenten. Keine vergleichende Werbung.
-   Keine Superlative. Bei Therapieaussagen: Quellen pflicht. ..."
-- required_disclaimer → fester Disclaimer-Text
-- post_process_response → hängt Disclaimer automatisch an
-
-Phase 3:
-- pre_process_messages → PII-Detektor (blockt Namen, GebDatum, Versich.Nr.)
-- post_process_response → Quellenangabe-Check, HWG-Aussagen-Filter
-- Anbindung an Fachinfo-RAG-Sammlung
+Geplant für Phase 3:
+- pre_process_messages() → PII-Detektor (Patientendaten blockieren)
 """
 
 from app.branches.base import BranchPlugin
+from app.branches.pharma.prompts import PHARMA_DISCLAIMER, PHARMA_SYSTEM_PROMPT
 from app.schemas import ChatMessage
 
 
 class PharmaPlugin(BranchPlugin):
-    """Pharma-Außendienst — leeres Gerüst (Phase 2 + 3)."""
+    """Pharma-Außendienst — voll aktiviert (Phase 2c)."""
 
     branch_code = "pharma"
     display_name = "Pharma-Außendienst"
@@ -32,31 +25,31 @@ class PharmaPlugin(BranchPlugin):
     # System-Prompt
     # ------------------------------------------------------------------ #
     def get_system_prompt(self) -> str | None:
-        # TODO Phase 2: HWG-/AMG-konformer System-Prompt einsetzen
-        return None
+        return PHARMA_SYSTEM_PROMPT
 
     # ------------------------------------------------------------------ #
-    # Pre-Processing
+    # Pre-Processing — Phase 3 (PII-Filter)
     # ------------------------------------------------------------------ #
     def pre_process_messages(
         self, messages: list[ChatMessage]
     ) -> list[ChatMessage]:
-        # TODO Phase 3: PII-Detektor (z.B. mit presidio-analyzer)
-        #               → bei Treffer: raise ValueError("Patientendaten blockiert")
-        return super().pre_process_messages(messages)
+        # TODO Phase 3: PII-Detektor (z.B. Microsoft Presidio)
+        #   → bei Treffer: raise ValueError("Patientendaten blockiert")
+        return messages
 
     # ------------------------------------------------------------------ #
     # Post-Processing
     # ------------------------------------------------------------------ #
     def post_process_response(self, response_text: str) -> str:
-        # TODO Phase 2: Disclaimer anhängen
-        # TODO Phase 3: HWG-Superlativ-Filter, Quellen-Pflicht-Check
-        return super().post_process_response(response_text)
+        """Hängt den Pflicht-Disclaimer an jede Antwort an."""
+        if PHARMA_DISCLAIMER.strip() in response_text:
+            # Falls bereits drin (z.B. nach Mehrfach-Aufruf): nicht doppeln
+            return response_text
+        return response_text + PHARMA_DISCLAIMER
 
     # ------------------------------------------------------------------ #
     # Disclaimer
     # ------------------------------------------------------------------ #
     @property
     def required_disclaimer(self) -> str | None:
-        # TODO Phase 2: Konkreter HWG-/AMG-Disclaimer-Text
-        return None
+        return PHARMA_DISCLAIMER

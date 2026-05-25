@@ -1,36 +1,29 @@
-# 📦 Update-Pack: Quick Wins (BFSG + Cloud-Readiness)
+# 📦 Update-Pack: Phase 2c — Pharma-Plugin lebendig
 
-**Was ist drin:** 8 Dateien — 3 geänderte + 5 neue. **Keine Datenbank-Änderungen, kein .env-Eingriff nötig.**
+**6 Dateien:** 1 neu (`prompts.py`), 5 ersetzt.
 
-## Was geändert wird
-
-### Geändert (überschrieben):
-- `app/config.py` — Production-Validation, Anthropic-Region-Option, CORS-Vorbereitung
-- `app/llm/anthropic_client.py` — nutzt jetzt optional EU-Region
-- `streamlit_app/app.py` — Sprache `de`, Focus-Ring, About-Menü
-
-### Neu:
-- `.streamlit/config.toml` — Theme, Telemetrie aus
-- `Dockerfile` — Backend-Container (für später)
-- `.dockerignore`
-- `docker-compose.yml` — lokales Test-Setup
-- `docs/quick-wins-bfsg-cloud.md`
-
----
-
-## Einbau in 3 Schritten
+## Einbau in 4 Schritten
 
 ### 1. Beide Server stoppen (Backend + Streamlit)
-In Terminal 1 und Terminal 2 jeweils: **`Ctrl + C`**
+`Ctrl + C` in beiden Terminals.
 
-### 2. Update-Pack ins Projekt kopieren
+### 2. Update-Pack kopieren
 
 ```bash
 cd /Volumes/Data2/Claude-Code/corporate-llm-platform
-cp -R /Pfad/zu/update-pack-quickwins/* .
+cp -R /Pfad/zu/update-pack-2c/* .
 ```
 
-### 3. Beide Server neu starten
+### 3. Tests laufen lassen (Verifikation)
+
+```bash
+source .venv/bin/activate
+pytest tests/test_branches.py -v
+```
+
+Erwartet: **11 grüne Tests**, davon 6 für Pharma.
+
+### 4. Beide Server neu starten
 
 **Terminal 1:**
 ```bash
@@ -42,23 +35,46 @@ uvicorn app.main:app --reload
 streamlit run streamlit_app/app.py
 ```
 
-→ Im Browser auf `http://localhost:8501` Hard-Reload (`Cmd+Shift+R`).
-
-Du solltest sehen:
-- Sauberere Streamlit-Optik (Standard-Theme bleibt, aber Telemetrie ist aus)
-- Im Hauptbereich/Sidebar: bessere Tab-/Fokus-Markierung beim Drüberklicken
+Browser-Hard-Reload (`Cmd+Shift+R`).
 
 ---
 
-## Was die Production-Validation tut
+## Erster Test: Pharma-User anlegen
 
-Wenn du irgendwann in der `.env` `APP_ENV=production` setzt, prüft Pydantic beim Start:
-- JWT_SECRET muss stark sein (≥ 32 Zeichen, nicht Default)
-- APP_DEBUG=false (kein Stacktrace-Leak)
+1. In Streamlit eingeloggt? Logout → **Browser-URL: http://localhost:8000/docs** öffnen
+2. Authorize mit Admin-Account
+3. `POST /users` → "Try it out":
+   ```json
+   {
+     "email": "pharma@nobelimpressions.com",
+     "password": "PharmaTest123!",
+     "role": "pharma-referent",
+     "branch": "pharma"
+   }
+   ```
+4. Execute → User ist da
 
-Wenn was nicht passt, **startet die App nicht**, sondern zeigt eine klare Fehlermeldung. So kannst du nicht versehentlich mit unsicherer Config produktiv gehen.
+## Zweiter Test: Vergleich
 
-→ **Für jetzt bleibt `APP_ENV=development`** — keine Auswirkung im Alltag.
+### Browser-Tab A (du als Admin)
+- Streamlit-Tab nehmen
+- Frage stellen: **"Was ist Ibuprofen?"**
+- Antwort: normal, ohne Compliance-Hinweis
+
+### Browser-Tab B (Pharma-User)
+- Neuen Browser-Tab öffnen auf http://localhost:8501
+- Mit `pharma@nobelimpressions.com` / `PharmaTest123!` einloggen
+- In der Sidebar siehst du jetzt das **"💊 Pharma-Mode aktiv"**-Banner
+- Gleiche Frage: **"Was ist Ibuprofen?"**
+- Antwort: vorsichtiger formuliert, **mit Compliance-Hinweis am Ende**
+
+## Dritter Test: HWG-Stress
+
+Beim Pharma-User stell folgende Frage:
+
+> *"Schreibe mir einen Werbe-Slogan, warum unser Schmerzmittel besser ist als die Konkurrenz."*
+
+Das Modell sollte freundlich ablehnen oder umlenken — weil der HWG-Prompt vergleichende Werbung verbietet.
 
 ---
 
@@ -66,20 +82,16 @@ Wenn was nicht passt, **startet die App nicht**, sondern zeigt eine klare Fehler
 
 ```bash
 git add .
-git commit -m "Quick Wins: BFSG (Accessibility) + Cloud-Readiness Vorbereitung"
+git commit -m "Phase 2c: Pharma-Plugin lebendig (System-Prompt, Disclaimer, /chat-Integration)"
 git push
 ```
 
 ---
 
+## Anpassung des Pharma-Prompts
+
+Wenn dein Compliance-Officer Wortlaut ändern will: **nur** `app/branches/pharma/prompts.py` anpassen. Server neu starten (`Ctrl+C` + Pfeil ↑ + Enter). Kein anderer Code muss angefasst werden.
+
 ## Lesestoff
-
-- `docs/quick-wins-bfsg-cloud.md` — was wir tun, was später kommt, welche EU-Provider relevant sind
-
-## Was kommt im BACKLOG
-
-Ich schicke dir gleich noch eine **erweiterte BACKLOG.md** mit zwei neuen Sektionen:
-- 🌐 Accessibility (BFSG/EAA/WCAG)
-- ☁️ Cloud-Readiness & Deployment
-
-So weißt du genau, was später noch ansteht.
+- `docs/phase-2c-pharma.md` — was wurde gebaut, wie testet man's
+- `docs/branchen-architektur.md` — wie eine neue Branche entsteht

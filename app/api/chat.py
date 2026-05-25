@@ -1,11 +1,10 @@
 """
 Chat-Endpoint (geschützt — Login erforderlich).
 
-Nimmt eine Liste Messages entgegen, leitet sie an den passenden
-LLM-Provider weiter und loggt den Token-Verbrauch in die DB.
-
-User-ID wird automatisch aus dem JWT-Token gezogen — der Client
-kann sie nicht mehr selbst setzen.
+Phase 2c: User-Branche → Branchen-Plugin wird automatisch aktiviert:
+- Branchen-System-Prompt wird vorangestellt
+- pre/post-process des Plugins läuft
+- z.B. Pharma-User bekommt Disclaimer in jeder Antwort
 """
 
 import time
@@ -14,20 +13,20 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlmodel import Session
 
 from app.auth.dependencies import get_current_user
+from app.branches import get_plugin
 from app.config import get_settings
 from app.database import get_session
 from app.llm.anthropic_client import AnthropicClient
 from app.llm.base import BaseLLMClient
 from app.models import User
 from app.pricing import calculate_cost
-from app.schemas import ChatRequest, ChatResponse, UsageInfo
+from app.schemas import ChatMessage, ChatRequest, ChatResponse, UsageInfo
 from app.services import token_tracker
 
 router = APIRouter(prefix="/chat", tags=["chat"])
 
 
 def _resolve_client(model: str) -> BaseLLMClient:
-    """Wählt den passenden Client anhand des Modellnamens."""
     if model.startswith("claude-"):
         return AnthropicClient()
     raise HTTPException(
@@ -48,13 +47,30 @@ async def chat(
     max_tokens = request.max_tokens or settings.default_max_tokens
     client = _resolve_client(model)
 
-    # user_id aus dem Token (Client kann das nicht mehr fälschen)
+    # --- Branchen-Plugin laden ---
+    plugin = get_plugin(current_user.branch.value)
+
+    # --- Branchen-System-Prompt vorne anhängen, wenn vorhanden ---
+    messages_for_llm: list[ChatMessage] = list(request.messages)
+    if branch_prompt := plugin.get_system_prompt():
+        messages_for_llm.insert(
+            0, ChatMessage(role="system", content=branch_prompt)
+        )
+
+    # --- Pre-Process (Phase 3: PII-Filter etc.) ---
+    try:
+        messages_for_llm = plugin.pre_process_messages(messages_for_llm)
+    except ValueError as exc:
+        # Plugin hat die Anfrage abgelehnt (z.B. Patientendaten erkannt)
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
     user_identifier = current_user.email
 
+    # --- LLM-Aufruf ---
     started = time.perf_counter()
     try:
         result = await client.chat(
-            messages=request.messages,
+            messages=messages_for_llm,
             model=model,
             max_tokens=max_tokens,
         )
@@ -78,6 +94,10 @@ async def chat(
 
     latency_ms = int((time.perf_counter() - started) * 1000)
 
+    # --- Post-Process (Disclaimer anhängen, Filter) ---
+    result.content = plugin.post_process_response(result.content)
+
+    # --- Logging ---
     token_tracker.log_usage(
         session,
         user_id=user_identifier,

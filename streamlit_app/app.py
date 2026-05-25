@@ -106,6 +106,15 @@ with st.sidebar:
     st.caption(f"{role_emoji} Rolle: `{user['role']}`")
     st.caption(f"🏢 Branche: `{user['branch']}`")
 
+    # Branchen-Hinweis: Wenn Pharma → Compliance-Banner
+    if user["branch"] == "pharma":
+        st.info(
+            "💊 **Pharma-Mode aktiv**\n\n"
+            "Antworten folgen HWG/AMG-Regeln. Jede Antwort enthält einen "
+            "Compliance-Hinweis am Ende.",
+            icon="⚖️",
+        )
+
     st.markdown("---")
 
     page_label = st.radio(
