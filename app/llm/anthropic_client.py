@@ -19,7 +19,10 @@ class AnthropicClient(BaseLLMClient):
 
     def __init__(self) -> None:
         settings = get_settings()
-        self._client = AsyncAnthropic(api_key=settings.anthropic_api_key)
+        kwargs: dict = {"api_key": settings.anthropic_api_key}
+        if settings.anthropic_base_url:
+            kwargs["base_url"] = settings.anthropic_base_url
+        self._client = AsyncAnthropic(**kwargs)
 
     async def chat(
         self,

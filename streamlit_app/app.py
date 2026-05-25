@@ -39,6 +39,29 @@ st.set_page_config(
     page_icon=APP_ICON,
     layout="wide",
     initial_sidebar_state="expanded",
+    menu_items={
+        "About": (
+            "Corporate LLM Platform — interne Plattform für KI-gestützte "
+            "Wissensarbeit. Konzipiert mit DSGVO und EU AI Act im Blick."
+        ),
+    },
+)
+
+# Sprachattribut auf "de" setzen (Streamlit setzt sonst "en")
+# und Basis-Style für besseren Fokus-Ring (WCAG 2.4.7 Focus Visible)
+st.markdown(
+    """
+    <script>
+    document.documentElement.lang = "de";
+    </script>
+    <style>
+      *:focus-visible {
+        outline: 3px solid #0066CC !important;
+        outline-offset: 2px !important;
+      }
+    </style>
+    """,
+    unsafe_allow_html=True,
 )
 
 

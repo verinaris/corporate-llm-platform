@@ -1,0 +1,25 @@
+# Docker-Compose für lokales Testen
+# Erst mal nur das Backend — Streamlit kann lokal weiterlaufen oder
+# später als zweiter Service hier reinkommen.
+#
+# Start:    docker compose up
+# Stop:     docker compose down
+# Rebuild:  docker compose up --build
+
+services:
+  backend:
+    build: .
+    container_name: corporate-llm-backend
+    ports:
+      - "8000:8000"
+    env_file:
+      - .env
+    volumes:
+      # SQLite-DB persistieren
+      - ./data:/app/data
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
