@@ -1,18 +1,7 @@
-"""Smoke-Tests."""
-
-import os
-
-# Test braucht einen Dummy-Key, damit Settings nicht crashen
-os.environ.setdefault("ANTHROPIC_API_KEY", "sk-ant-dummy-for-tests")
-
-from fastapi.testclient import TestClient  # noqa: E402
-
-from app.main import app  # noqa: E402
-
-client = TestClient(app)
+"""Smoke-Tests für Health-/Stats-Endpoints."""
 
 
-def test_health():
+def test_health(client):
     r = client.get("/health")
     assert r.status_code == 200
     body = r.json()
@@ -20,9 +9,18 @@ def test_health():
     assert "version" in body
 
 
-def test_stats_initially_empty():
+def test_stats_requires_login(client):
+    """Stats ohne Token soll 401 zurückgeben."""
     r = client.get("/stats")
+    assert r.status_code == 401
+
+
+def test_stats_with_user_token(client, user_token):
+    """Mit Token soll es funktionieren."""
+    r = client.get(
+        "/stats",
+        headers={"Authorization": f"Bearer {user_token}"},
+    )
     assert r.status_code == 200
     body = r.json()
     assert body["total_requests"] >= 0
-    assert isinstance(body["by_model"], dict)

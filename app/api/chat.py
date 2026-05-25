@@ -1,8 +1,11 @@
 """
-Chat-Endpoint.
+Chat-Endpoint (geschützt — Login erforderlich).
 
 Nimmt eine Liste Messages entgegen, leitet sie an den passenden
 LLM-Provider weiter und loggt den Token-Verbrauch in die DB.
+
+User-ID wird automatisch aus dem JWT-Token gezogen — der Client
+kann sie nicht mehr selbst setzen.
 """
 
 import time
@@ -10,10 +13,12 @@ import time
 from fastapi import APIRouter, Depends, HTTPException
 from sqlmodel import Session
 
+from app.auth.dependencies import get_current_user
 from app.config import get_settings
 from app.database import get_session
 from app.llm.anthropic_client import AnthropicClient
 from app.llm.base import BaseLLMClient
+from app.models import User
 from app.pricing import calculate_cost
 from app.schemas import ChatRequest, ChatResponse, UsageInfo
 from app.services import token_tracker
@@ -21,7 +26,6 @@ from app.services import token_tracker
 router = APIRouter(prefix="/chat", tags=["chat"])
 
 
-# In Phase 1 nur Anthropic — in Phase 4 wird das ein Provider-Registry
 def _resolve_client(model: str) -> BaseLLMClient:
     """Wählt den passenden Client anhand des Modellnamens."""
     if model.startswith("claude-"):
@@ -36,12 +40,16 @@ def _resolve_client(model: str) -> BaseLLMClient:
 async def chat(
     request: ChatRequest,
     session: Session = Depends(get_session),
+    current_user: User = Depends(get_current_user),
 ) -> ChatResponse:
     """Sendet eine Chat-Anfrage an das LLM und loggt den Verbrauch."""
     settings = get_settings()
     model = request.model or settings.default_model
     max_tokens = request.max_tokens or settings.default_max_tokens
     client = _resolve_client(model)
+
+    # user_id aus dem Token (Client kann das nicht mehr fälschen)
+    user_identifier = current_user.email
 
     started = time.perf_counter()
     try:
@@ -50,11 +58,11 @@ async def chat(
             model=model,
             max_tokens=max_tokens,
         )
-    except Exception as exc:  # breit, damit wir den Fehler auch loggen können
+    except Exception as exc:
         latency_ms = int((time.perf_counter() - started) * 1000)
         token_tracker.log_usage(
             session,
-            user_id=request.user_id or "anonymous",
+            user_id=user_identifier,
             provider="anthropic",
             model=model,
             input_tokens=0,
@@ -63,13 +71,16 @@ async def chat(
             success=False,
             error=str(exc),
         )
-        raise HTTPException(status_code=502, detail=f"LLM-Aufruf fehlgeschlagen: {exc}") from exc
+        raise HTTPException(
+            status_code=502,
+            detail=f"LLM-Aufruf fehlgeschlagen: {exc}",
+        ) from exc
 
     latency_ms = int((time.perf_counter() - started) * 1000)
 
     token_tracker.log_usage(
         session,
-        user_id=request.user_id or "anonymous",
+        user_id=user_identifier,
         provider=result.provider,
         model=result.model,
         input_tokens=result.input_tokens,
@@ -86,7 +97,9 @@ async def chat(
             input_tokens=result.input_tokens,
             output_tokens=result.output_tokens,
             total_tokens=result.input_tokens + result.output_tokens,
-            cost_usd=calculate_cost(result.model, result.input_tokens, result.output_tokens),
+            cost_usd=calculate_cost(
+                result.model, result.input_tokens, result.output_tokens
+            ),
             latency_ms=latency_ms,
         ),
     )

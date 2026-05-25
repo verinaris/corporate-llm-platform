@@ -3,13 +3,10 @@ Token-Tracker.
 
 Loggt jeden LLM-Request in die DB (Tabelle `token_usage`) und stellt
 Auswertungsfunktionen bereit.
-
-Analogie: Die Kassenrolle eines Supermarkts — jeder Bon (Request) wird
-einzeln aufgezeichnet, später kann man Tagesumsätze ableiten.
 """
 
 from collections import defaultdict
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Optional
 
 from sqlmodel import Session, select
@@ -34,7 +31,7 @@ def log_usage(
     """Schreibt einen Token-Usage-Eintrag in die DB."""
     cost = calculate_cost(model, input_tokens, output_tokens)
     record = TokenUsage(
-        timestamp=datetime.utcnow(),
+        timestamp=datetime.now(timezone.utc),
         user_id=user_id,
         provider=provider,
         model=model,
@@ -52,13 +49,19 @@ def log_usage(
     return record
 
 
-def get_summary(session: Session) -> StatsSummary:
+def get_summary(
+    session: Session,
+    user_filter: Optional[str] = None,
+) -> StatsSummary:
     """
-    Liefert eine Gesamtauswertung über alle Requests.
+    Liefert eine Auswertung über die Requests.
 
-    Aggregiert nach Modell und User.
+    Wenn user_filter gesetzt ist, werden nur Einträge dieses Users aggregiert.
     """
-    rows = session.exec(select(TokenUsage)).all()
+    query = select(TokenUsage)
+    if user_filter:
+        query = query.where(TokenUsage.user_id == user_filter)
+    rows = session.exec(query).all()
 
     total_requests = len(rows)
     total_input = sum(r.input_tokens for r in rows)

@@ -18,21 +18,11 @@ class ChatMessage(BaseModel):
 
 
 class ChatRequest(BaseModel):
-    """Eingehende Chat-Anfrage."""
+    """Eingehende Chat-Anfrage. User wird aus dem JWT-Token bestimmt."""
 
     messages: list[ChatMessage] = Field(..., min_length=1)
-    model: Optional[str] = None          # None → Default aus config
+    model: Optional[str] = None
     max_tokens: Optional[int] = None
-    user_id: Optional[str] = "anonymous" # in Phase 2 aus Auth-Token
-
-
-class ChatResponse(BaseModel):
-    """Antwort vom LLM samt Metadaten."""
-
-    content: str
-    model: str
-    provider: str
-    usage: "UsageInfo"
 
 
 class UsageInfo(BaseModel):
@@ -43,19 +33,16 @@ class UsageInfo(BaseModel):
     latency_ms: int
 
 
+class ChatResponse(BaseModel):
+    """Antwort vom LLM samt Metadaten."""
+
+    content: str
+    model: str
+    provider: str
+    usage: UsageInfo
+
+
 # ---------- Stats ----------
-
-class StatsSummary(BaseModel):
-    """Gesamtauswertung über alle Requests."""
-
-    total_requests: int
-    total_input_tokens: int
-    total_output_tokens: int
-    total_tokens: int
-    total_cost_usd: float
-    by_model: dict[str, "ModelStats"]
-    by_user: dict[str, "UserStats"]
-
 
 class ModelStats(BaseModel):
     requests: int
@@ -70,6 +57,13 @@ class UserStats(BaseModel):
     cost_usd: float
 
 
-# Forward references auflösen
-ChatResponse.model_rebuild()
-StatsSummary.model_rebuild()
+class StatsSummary(BaseModel):
+    """Gesamtauswertung über alle Requests."""
+
+    total_requests: int
+    total_input_tokens: int
+    total_output_tokens: int
+    total_tokens: int
+    total_cost_usd: float
+    by_model: dict[str, ModelStats]
+    by_user: dict[str, UserStats]

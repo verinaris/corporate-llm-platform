@@ -3,9 +3,6 @@ Zentrale Konfiguration.
 
 Liest alle Einstellungen aus der .env-Datei und stellt sie typsicher zur
 Verfügung. Pydantic validiert die Werte automatisch beim Start.
-
-Analogie: Das ist das "Sicherungskasten-Schaltbild" der App — alles, was
-extern konfigurierbar ist, läuft hier durch.
 """
 
 from functools import lru_cache
@@ -42,13 +39,14 @@ class Settings(BaseSettings):
     host: str = "0.0.0.0"
     port: int = 8000
 
+    # --- Auth ---
+    jwt_secret: str = "change-me-in-production"
+    jwt_expire_hours: int = 24
+    bootstrap_admin_email: str | None = None
+    bootstrap_admin_password: str | None = None
+
 
 @lru_cache
 def get_settings() -> Settings:
-    """
-    Singleton-Zugriff auf Settings.
-
-    @lru_cache sorgt dafür, dass die Settings nur einmal geladen werden,
-    auch wenn die Funktion mehrfach aufgerufen wird.
-    """
+    """Singleton-Zugriff auf Settings."""
     return Settings()  # type: ignore[call-arg]
