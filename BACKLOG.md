@@ -58,6 +58,28 @@
 - [ ] 🟡 `[NF]` Lokales Embedding-Modell
 
 ---
+## 📋 Phase 3c — Document-Storage UX-Verbesserungen
+Funktional
+
+ 🟡 [F] Upload-Fortschrittsanzeige in % während des Hochladens
+
+Damit User abschätzen kann, wie lange es noch dauert
+Implementierungs-Optionen siehe docs/phase-3c-upload-progress.md (kommt)
+
+
+ 🟡 [F] Phasen-Statusmeldung nach Upload-Abschluss:
+"Hochladen → PDF lesen → Chunks erstellen → Embeddings → Fertig"
+ 🟢 [F] PDF-Vorschau direkt in der Quellen-Card im Chat
+ 🟢 [F] Sammlung-Beschreibungen + Tags
+ 🟢 [F] Versionierung von Dokumenten (alte Version archivieren bei Re-Upload)
+
+Nichtfunktional
+
+ 🟡 [NF] Server-Sent Events (SSE) für Echtzeit-Progress (Backend)
+ 🟢 [NF] Background-Job-Queue (z.B. mit RQ oder Celery)
+für Uploads > 100 MB, damit Browser nicht blockiert
+
+---
 
 ## 📋 Phase 4 — Multi-LLM-Routing
 
