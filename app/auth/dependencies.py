@@ -53,3 +53,15 @@ def require_admin(user: User = Depends(get_current_user)) -> User:
             detail="Admin-Rechte erforderlich",
         )
     return user
+
+
+def require_admin_or_compliance(
+    user: User = Depends(get_current_user),
+) -> User:
+    """Admin ODER Compliance-Officer — für Dokumenten-Management."""
+    if user.role not in (UserRole.ADMIN, UserRole.COMPLIANCE_OFFICER):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Admin- oder Compliance-Officer-Rechte erforderlich",
+        )
+    return user

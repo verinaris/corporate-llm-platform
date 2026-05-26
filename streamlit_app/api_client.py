@@ -66,13 +66,61 @@ class APIClient:
         messages: list[dict[str, str]],
         model: Optional[str] = None,
         max_tokens: Optional[int] = None,
+        collection: Optional[str] = None,
+        top_k: int = 4,
     ) -> dict[str, Any]:
         payload: dict[str, Any] = {"messages": messages}
         if model:
             payload["model"] = model
         if max_tokens:
             payload["max_tokens"] = max_tokens
-        return self._post("/chat", payload, timeout=60)
+        if collection:
+            payload["collection"] = collection
+            payload["top_k"] = top_k
+        return self._post("/chat", payload, timeout=90)
+
+    # ------------------------------------------------------------------ #
+    # Documents (Phase 3a/b)
+    # ------------------------------------------------------------------ #
+    def list_collections(self) -> list[dict[str, Any]]:
+        return self._get("/documents/collections")  # type: ignore[return-value]
+
+    def list_documents(self, collection: Optional[str] = None) -> list[dict[str, Any]]:
+        path = "/documents"
+        if collection:
+            path += f"?collection={collection}"
+        return self._get(path)  # type: ignore[return-value]
+
+    def upload_document(
+        self, file_bytes: bytes, filename: str, collection: str
+    ) -> dict[str, Any]:
+        """PDF hochladen."""
+        try:
+            r = httpx.post(
+                f"{self.base_url}/documents",
+                headers=self._headers(),
+                files={"file": (filename, file_bytes, "application/pdf")},
+                data={"collection": collection},
+                timeout=600,  # 10 Min — große PDFs brauchen lange beim Embedden
+            )
+        except httpx.RequestError as e:
+            raise APIError(0, f"Backend nicht erreichbar: {e}") from e
+        if r.status_code not in (200, 201):
+            raise APIError(r.status_code, _extract_detail(r))
+        return r.json()
+
+    def delete_document(self, document_id: int) -> dict[str, Any]:
+        try:
+            r = httpx.delete(
+                f"{self.base_url}/documents/{document_id}",
+                headers=self._headers(),
+                timeout=30,
+            )
+        except httpx.RequestError as e:
+            raise APIError(0, f"Backend nicht erreichbar: {e}") from e
+        if r.status_code != 200:
+            raise APIError(r.status_code, _extract_detail(r))
+        return r.json()
 
     # ------------------------------------------------------------------ #
     # Stats

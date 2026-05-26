@@ -27,7 +27,12 @@ from streamlit_app.config import (
     AVAILABLE_MODELS,
     DEFAULT_MODEL_LABEL,
 )
-from streamlit_app.views import chat_page, login_page, stats_page
+from streamlit_app.views import (
+    chat_page,
+    documents_page,
+    login_page,
+    stats_page,
+)
 
 
 # ----------------------------------------------------------------------- #
@@ -47,8 +52,6 @@ st.set_page_config(
     },
 )
 
-# Sprachattribut auf "de" setzen (Streamlit setzt sonst "en")
-# und Basis-Style für besseren Fokus-Ring (WCAG 2.4.7 Focus Visible)
 st.markdown(
     """
     <script>
@@ -92,6 +95,20 @@ if not _is_logged_in():
 
 user = st.session_state["user"]
 
+
+def _fetch_collections() -> list[str]:
+    """Holt die Liste der Sammlungen vom Backend (cached pro Session)."""
+    if "_collections_cache" in st.session_state:
+        return st.session_state["_collections_cache"]
+    try:
+        collections = APIClient(token=st.session_state["token"]).list_collections()
+        names = ["— keine —"] + [c["name"] for c in collections]
+    except APIError:
+        names = ["— keine —"]
+    st.session_state["_collections_cache"] = names
+    return names
+
+
 with st.sidebar:
     st.markdown(f"### {APP_ICON} {APP_TITLE}")
     st.markdown("---")
@@ -106,7 +123,6 @@ with st.sidebar:
     st.caption(f"{role_emoji} Rolle: `{user['role']}`")
     st.caption(f"🏢 Branche: `{user['branch']}`")
 
-    # Branchen-Hinweis: Wenn Pharma → Compliance-Banner
     if user["branch"] == "pharma":
         st.info(
             "💊 **Pharma-Mode aktiv**\n\n"
@@ -117,11 +133,38 @@ with st.sidebar:
 
     st.markdown("---")
 
+    # Navigation — Documents-Page nur für Admin/Compliance-Officer
+    nav_options = ["💬 Chat", "📊 Verbrauch"]
+    if user["role"] in ("admin", "compliance-officer"):
+        nav_options.insert(1, "📚 Wissensbibliothek")
     page_label = st.radio(
         "Navigation",
-        ["💬 Chat", "📊 Verbrauch"],
+        nav_options,
         label_visibility="collapsed",
     )
+
+    st.markdown("---")
+
+    # RAG-Sammlung wählen
+    st.markdown("**📚 Wissensbibliothek**")
+    collections = _fetch_collections()
+    selected_collection = st.selectbox(
+        "Sammlung",
+        collections,
+        index=collections.index(
+            st.session_state.get("active_collection", "— keine —")
+        ) if st.session_state.get("active_collection", "— keine —") in collections else 0,
+        label_visibility="collapsed",
+        help=(
+            "Wähle eine Sammlung, um Antworten aus deinen Dokumenten zu erhalten "
+            "(RAG). Bei 'keine' antwortet Claude aus Allgemeinwissen."
+        ),
+    )
+    st.session_state["active_collection"] = selected_collection
+
+    if st.button("🔄 Sammlungen aktualisieren", use_container_width=True):
+        st.session_state.pop("_collections_cache", None)
+        st.rerun()
 
     st.markdown("---")
 
@@ -143,7 +186,7 @@ with st.sidebar:
         st.rerun()
 
     if st.button("🚪 Logout", use_container_width=True):
-        for key in ("token", "user", "messages"):
+        for key in ("token", "user", "messages", "_collections_cache"):
             st.session_state.pop(key, None)
         st.rerun()
 
@@ -154,5 +197,7 @@ with st.sidebar:
 
 if page_label == "💬 Chat":
     chat_page.render()
+elif page_label == "📚 Wissensbibliothek":
+    documents_page.render()
 elif page_label == "📊 Verbrauch":
     stats_page.render()

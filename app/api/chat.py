@@ -1,10 +1,8 @@
 """
 Chat-Endpoint (geschützt — Login erforderlich).
 
-Phase 2c: User-Branche → Branchen-Plugin wird automatisch aktiviert:
-- Branchen-System-Prompt wird vorangestellt
-- pre/post-process des Plugins läuft
-- z.B. Pharma-User bekommt Disclaimer in jeder Antwort
+Phase 2c: User-Branche → Branchen-Plugin (z.B. Pharma-Disclaimer)
+Phase 3b: Optional RAG via 'collection'-Parameter
 """
 
 import time
@@ -22,6 +20,11 @@ from app.models import User
 from app.pricing import calculate_cost
 from app.schemas import ChatMessage, ChatRequest, ChatResponse, UsageInfo
 from app.services import token_tracker
+from app.services.rag import (
+    build_rag_context,
+    extract_last_user_query,
+    inject_rag_context,
+)
 
 router = APIRouter(prefix="/chat", tags=["chat"])
 
@@ -57,12 +60,31 @@ async def chat(
             0, ChatMessage(role="system", content=branch_prompt)
         )
 
-    # --- Pre-Process (Phase 3: PII-Filter etc.) ---
+    # --- Pre-Process (Phase 3+: PII-Filter) ---
     try:
         messages_for_llm = plugin.pre_process_messages(messages_for_llm)
     except ValueError as exc:
-        # Plugin hat die Anfrage abgelehnt (z.B. Patientendaten erkannt)
         raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    # --- RAG: Wenn Collection gesetzt, Kontext aus Vektor-DB einspielen ---
+    sources_for_response = []
+    if request.collection:
+        query = extract_last_user_query(messages_for_llm)
+        if query:
+            try:
+                context, sources_for_response = build_rag_context(
+                    collection=request.collection,
+                    query=query,
+                    top_k=request.top_k,
+                )
+                if context:
+                    messages_for_llm = inject_rag_context(
+                        messages_for_llm, context
+                    )
+            except Exception as exc:
+                # RAG-Fehler nicht fatal — Chat geht ohne Kontext weiter,
+                # aber wir loggen das.
+                print(f"[RAG] Vektor-Suche fehlgeschlagen: {exc}")
 
     user_identifier = current_user.email
 
@@ -122,4 +144,5 @@ async def chat(
             ),
             latency_ms=latency_ms,
         ),
+        sources=sources_for_response,
     )

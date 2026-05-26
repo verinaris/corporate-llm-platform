@@ -1,80 +1,119 @@
-# 📦 Update-Pack: Phase 2c — Pharma-Plugin lebendig
+# 📦 Update-Pack: Phase 3b — RAG im Chat
 
-**6 Dateien:** 1 neu (`prompts.py`), 5 ersetzt.
+**9 Dateien** — Backend + Frontend Updates. **Keine neuen Dependencies** —
+alles nutzt was Phase 3a bereits installiert hat.
+
+## Was ist neu
+
+### Backend
+- `app/schemas.py` (ersetzen) — neue Felder `collection`, `top_k`, `sources`
+- `app/api/chat.py` (ersetzen) — RAG-Pfad integriert
+- `app/services/rag.py` (neu) — Kontext-Builder + Helper
+
+### Frontend
+- `streamlit_app/app.py` (ersetzen) — Sammlungs-Selector, Navigation
+- `streamlit_app/api_client.py` (ersetzen) — Documents/RAG-Methoden
+- `streamlit_app/views/chat_page.py` (ersetzen) — Quellen-Cards
+- `streamlit_app/views/documents_page.py` (neu) — Upload-UI
+
+### Tests + Doku
+- `tests/test_rag.py` (neu) — 8 Tests
+- `docs/phase-3b-rag-chat.md`
+
+---
 
 ## Einbau in 4 Schritten
 
-### 1. Beide Server stoppen (Backend + Streamlit)
-`Ctrl + C` in beiden Terminals.
+### 1. Beide Server stoppen
+`Ctrl + C` in Terminal 1 und 2.
 
 ### 2. Update-Pack kopieren
 
 ```bash
 cd /Volumes/Data2/Claude-Code/corporate-llm-platform
-cp -R /Pfad/zu/update-pack-2c/* .
+cp -R /Pfad/zu/update-pack-3b/* .
 ```
 
-### 3. Tests laufen lassen (Verifikation)
+### 3. Tests laufen lassen
 
 ```bash
 source .venv/bin/activate
-pytest tests/test_branches.py -v
+pytest tests/ -v
 ```
 
-Erwartet: **11 grüne Tests**, davon 6 für Pharma.
+Erwartet: **alle bisherigen Tests grün + 8 neue für RAG**.
 
 ### 4. Beide Server neu starten
 
-**Terminal 1:**
 ```bash
+# Terminal 1
 uvicorn app.main:app --reload
-```
 
-**Terminal 2:**
-```bash
+# Terminal 2
 streamlit run streamlit_app/app.py
 ```
 
-Browser-Hard-Reload (`Cmd+Shift+R`).
+Im Browser: **Hard-Reload mit `Cmd+Shift+R`**.
 
 ---
 
-## Erster Test: Pharma-User anlegen
+## Der WOW-Test
 
-1. In Streamlit eingeloggt? Logout → **Browser-URL: http://localhost:8000/docs** öffnen
-2. Authorize mit Admin-Account
-3. `POST /users` → "Try it out":
-   ```json
-   {
-     "email": "pharma@nobelimpressions.com",
-     "password": "PharmaTest123!",
-     "role": "pharma-referent",
-     "branch": "pharma"
-   }
-   ```
-4. Execute → User ist da
+### Stufe 1 — Upload via UI (statt Swagger!)
 
-## Zweiter Test: Vergleich
+1. In Streamlit eingeloggt → Sidebar: **📚 Wissensbibliothek**
+2. Tab "⬆️ Upload"
+3. Sammlungs-Name: `test-sammlung`
+4. PDF auswählen → "📤 Hochladen"
+5. ✅ Erfolgsmeldung mit Chunk-Count
 
-### Browser-Tab A (du als Admin)
-- Streamlit-Tab nehmen
-- Frage stellen: **"Was ist Ibuprofen?"**
-- Antwort: normal, ohne Compliance-Hinweis
+### Stufe 2 — RAG aktivieren
 
-### Browser-Tab B (Pharma-User)
-- Neuen Browser-Tab öffnen auf http://localhost:8501
-- Mit `pharma@nobelimpressions.com` / `PharmaTest123!` einloggen
-- In der Sidebar siehst du jetzt das **"💊 Pharma-Mode aktiv"**-Banner
-- Gleiche Frage: **"Was ist Ibuprofen?"**
-- Antwort: vorsichtiger formuliert, **mit Compliance-Hinweis am Ende**
+1. Sidebar: **Sammlung-Dropdown** unter "📚 Wissensbibliothek"
+2. `test-sammlung` wählen
+3. **Wechsel auf 💬 Chat** → oben siehst du das Banner **"📚 RAG aktiv"**
 
-## Dritter Test: HWG-Stress
+### Stufe 3 — Magie erleben
 
-Beim Pharma-User stell folgende Frage:
+Stelle eine Frage zum PDF-Inhalt. Die Antwort kommt mit:
+- 🤖 Antwort, die deine PDF zitiert
+- 📚 **Aufklappbarer Quellen-Bereich** mit Filename, Seite, Relevanz-Score
+- 💰 Tokens & Kosten wie immer
 
-> *"Schreibe mir einen Werbe-Slogan, warum unser Schmerzmittel besser ist als die Konkurrenz."*
+### Stufe 4 — A/B-Vergleich
 
-Das Modell sollte freundlich ablehnen oder umlenken — weil der HWG-Prompt vergleichende Werbung verbietet.
+1. **Mit RAG:** Frag etwas Spezifisches aus deinem PDF → präzise Antwort + Quellen
+2. **Ohne RAG:** Sammlung auf "— keine —" → Claude antwortet aus Allgemeinwissen → keine Quellen
+
+→ Du erlebst direkt, warum RAG der Game-Changer für Corporate-Nutzung ist.
+
+### Stufe 5 — Pharma-User mit RAG (für die ganz Mutigen)
+
+1. Mit Pharma-User einloggen (`pharma@nobelimpressions.com`)
+2. Sammlung wählen
+3. Frage stellen
+4. Antwort hat:
+   - **HWG-konforme Formulierungen** (vom Pharma-Plugin)
+   - **Quellenangaben** aus deinem Dokument (vom RAG)
+   - **Compliance-Hinweis** am Ende
+
+Drei Sicherheitsnetze auf einmal. 🎯
+
+---
+
+## Falls etwas hakt
+
+### "Sammlung nicht gefunden"
+→ Hast du tatsächlich ein PDF hochgeladen? Erst Upload via UI/Swagger, dann RAG.
+
+### Quellen-Cards leer
+→ Möglich, dass die Frage zu unspezifisch ist. ChromaDB findet trotzdem die "ähnlichsten" Chunks, aber sie sind dann nicht relevant. Versuch eine konkretere Frage.
+
+### "Backend nicht erreichbar"
+→ Läuft uvicorn? Terminal 1 checken.
+
+### Streamlit zeigt alte Sidebar
+→ Browser-Hard-Reload (`Cmd+Shift+R`)
 
 ---
 
@@ -82,16 +121,24 @@ Das Modell sollte freundlich ablehnen oder umlenken — weil der HWG-Prompt verg
 
 ```bash
 git add .
-git commit -m "Phase 2c: Pharma-Plugin lebendig (System-Prompt, Disclaimer, /chat-Integration)"
+git commit -m "Phase 3b: RAG im Chat (Sammlungs-Selector, Quellen-Cards, Upload-UI)"
 git push
 ```
 
 ---
 
-## Anpassung des Pharma-Prompts
+## Was du jetzt hast
 
-Wenn dein Compliance-Officer Wortlaut ändern will: **nur** `app/branches/pharma/prompts.py` anpassen. Server neu starten (`Ctrl+C` + Pfeil ↑ + Enter). Kein anderer Code muss angefasst werden.
+- ✅ Vollständiger RAG-Workflow End-to-End
+- ✅ Upload direkt aus Streamlit (kein Swagger nötig)
+- ✅ Sammlungsverwaltung mit Cards + Stats
+- ✅ Quellen-Transparenz (EU AI Act Art. 13!)
+- ✅ Funktioniert auch mit Pharma-Branche kombiniert
+- ✅ Granulare Rechte: Admin/Compliance dürfen verwalten, User dürfen lesen
 
-## Lesestoff
-- `docs/phase-2c-pharma.md` — was wurde gebaut, wie testet man's
-- `docs/branchen-architektur.md` — wie eine neue Branche entsteht
+## Was als nächstes (Phase 3c, optional)
+
+- Pharma-spezifische Sammlungen mit Pflicht-Quellen
+- PDF-Vorschau direkt in der Quellen-Card
+- Sammlung-Beschreibungen + Tags
+- Versionierung von Dokumenten

@@ -24,6 +24,24 @@ class ChatRequest(BaseModel):
     model: Optional[str] = None
     max_tokens: Optional[int] = None
 
+    # RAG (Phase 3b) — optional. Wenn collection gesetzt, wird die letzte
+    # User-Nachricht semantisch in der Sammlung gesucht und der Kontext
+    # an Claude mitgegeben.
+    collection: Optional[str] = None
+    top_k: int = Field(default=4, ge=1, le=15)
+
+
+class SourceReference(BaseModel):
+    """Eine Quellenangabe, die in der Antwort verwendet wurde."""
+
+    document_id: int
+    filename: str
+    page: int
+    excerpt: str = Field(description="Kurzer Auszug aus dem Chunk")
+    distance: float = Field(
+        description="Kleinerer Wert = relevanter (0.0 = perfekte Übereinstimmung)"
+    )
+
 
 class UsageInfo(BaseModel):
     input_tokens: int
@@ -40,6 +58,10 @@ class ChatResponse(BaseModel):
     model: str
     provider: str
     usage: UsageInfo
+    sources: list[SourceReference] = Field(
+        default_factory=list,
+        description="Bei RAG-Anfragen: verwendete Quellen aus der Sammlung",
+    )
 
 
 # ---------- Stats ----------

@@ -24,7 +24,7 @@ def test_create_user_as_admin(client, admin_token):
         "/users",
         headers={"Authorization": f"Bearer {admin_token}"},
         json={
-            "email": "neuer@test.local",
+            "email": "neuer@example.com",
             "password": "GeheimGeheim1!",
             "role": "pharma-referent",
             "branch": "pharma",
@@ -32,7 +32,7 @@ def test_create_user_as_admin(client, admin_token):
     )
     assert r.status_code == 201
     body = r.json()
-    assert body["email"] == "neuer@test.local"
+    assert body["email"] == "neuer@example.com"
     assert body["role"] == "pharma-referent"
     assert body["branch"] == "pharma"
 
@@ -42,7 +42,7 @@ def test_create_user_duplicate_email(client, admin_token, regular_user):
         "/users",
         headers={"Authorization": f"Bearer {admin_token}"},
         json={
-            "email": "user@test.local",  # existiert schon
+            "email": "user@example.com",  # existiert schon
             "password": "GeheimGeheim1!",
         },
     )
@@ -54,7 +54,7 @@ def test_create_user_password_too_short(client, admin_token):
         "/users",
         headers={"Authorization": f"Bearer {admin_token}"},
         json={
-            "email": "kurz@test.local",
+            "email": "kurz@example.com",
             "password": "kurz",  # zu kurz
         },
     )

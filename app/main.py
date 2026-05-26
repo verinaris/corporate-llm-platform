@@ -19,6 +19,7 @@ from sqlmodel import Session, select
 from app import __version__
 from app.api import auth as auth_api
 from app.api import chat as chat_api
+from app.api import documents as documents_api
 from app.api import health as health_api
 from app.api import stats as stats_api
 from app.api import users as users_api
@@ -78,6 +79,7 @@ def create_app() -> FastAPI:
     app.include_router(users_api.router)
     app.include_router(chat_api.router)
     app.include_router(stats_api.router)
+    app.include_router(documents_api.router)
 
     return app
 

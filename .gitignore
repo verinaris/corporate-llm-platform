@@ -35,3 +35,7 @@ logs/
 # Streamlit (Phase 2+)
 .streamlit/secrets.toml
 .env
+# User-Daten — NIE ins Repo!
+data/
+data/**
+*.pdf

@@ -83,3 +83,28 @@ class TokenUsage(SQLModel, table=True):
     # Status
     success: bool = True
     error: Optional[str] = None
+
+
+class Document(SQLModel, table=True):
+    """
+    Dokument-Metadaten (Phase 3a).
+
+    Die eigentlichen Chunks + Embeddings liegen in ChromaDB.
+    Diese Tabelle speichert die "Header-Info" jedes hochgeladenen Files.
+    """
+
+    __tablename__ = "documents"
+
+    id: Optional[int] = Field(default=None, primary_key=True)
+    collection: str = Field(index=True)         # z.B. "pharma-fachinfos"
+    original_filename: str
+    content_type: str = "application/pdf"
+    size_bytes: int = 0
+    page_count: int = 0
+    chunk_count: int = 0
+    uploaded_by: str = Field(index=True)        # User-E-Mail
+    uploaded_at: datetime = Field(
+        default_factory=lambda: datetime.now(timezone.utc)
+    )
+    # Pfad zur Original-Datei auf Disk (nicht in ChromaDB)
+    stored_path: Optional[str] = None

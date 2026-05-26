@@ -61,7 +61,7 @@ def admin_user() -> User:
     """Erzeugt einen Admin-User in der Test-DB."""
     with Session(engine) as session:
         user = User(
-            email="admin@test.local",
+            email="admin@example.com",
             password_hash=hash_password("AdminPass123!"),
             role=UserRole.ADMIN,
             branch=UserBranch.GENERIC,
@@ -77,7 +77,7 @@ def regular_user() -> User:
     """Erzeugt einen normalen User in der Test-DB."""
     with Session(engine) as session:
         user = User(
-            email="user@test.local",
+            email="user@example.com",
             password_hash=hash_password("UserPass123!"),
             role=UserRole.USER,
             branch=UserBranch.GENERIC,
@@ -100,9 +100,9 @@ def _login(client: TestClient, email: str, password: str) -> str:
 
 @pytest.fixture
 def admin_token(client, admin_user) -> str:
-    return _login(client, "admin@test.local", "AdminPass123!")
+    return _login(client, "admin@example.com", "AdminPass123!")
 
 
 @pytest.fixture
 def user_token(client, regular_user) -> str:
-    return _login(client, "user@test.local", "UserPass123!")
+    return _login(client, "user@example.com", "UserPass123!")
