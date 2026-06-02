@@ -108,3 +108,29 @@ class Document(SQLModel, table=True):
     )
     # Pfad zur Original-Datei auf Disk (nicht in ChromaDB)
     stored_path: Optional[str] = None
+    # SHA-256 Hash der Datei-Bytes (Phase 3c+) — für Duplikatsprüfung
+    # pro Sammlung. Bestehende Dokumente vor diesem Feature haben None.
+    content_hash: Optional[str] = Field(default=None, index=True)
+
+
+class DocumentCollection(SQLModel, table=True):
+    """
+    Metadaten einer Dokumenten-Sammlung (Phase 3c).
+
+    Sammlungen sind bisher nur Strings (siehe Document.collection).
+    Diese Tabelle fügt optionale Beschreibung + Tags hinzu — wichtig
+    für Multi-Tenant-Setups und für klare Auffindbarkeit im UI.
+    """
+
+    __tablename__ = "document_collections"
+
+    name: str = Field(primary_key=True, index=True)
+    description: Optional[str] = Field(default=None)
+    tags: str = Field(default="")  # komma-separiert
+    created_by: str = Field(index=True)
+    created_at: datetime = Field(
+        default_factory=lambda: datetime.now(timezone.utc)
+    )
+    updated_at: datetime = Field(
+        default_factory=lambda: datetime.now(timezone.utc)
+    )

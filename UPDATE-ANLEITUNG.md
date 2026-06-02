@@ -1,144 +1,65 @@
-# 📦 Update-Pack: Phase 3b — RAG im Chat
+# 🔧 KOMPLETT-PACK: Duplikatsprüfung (konsolidiert)
 
-**9 Dateien** — Backend + Frontend Updates. **Keine neuen Dependencies** —
-alles nutzt was Phase 3a bereits installiert hat.
+Dieses Pack ersetzt die beiden vorherigen (`hotfix-dedupe` + `hotfix-backfill`)
+durch eine **konsistente, in sich geschlossene Lösung**.
 
-## Was ist neu
+## Was drin ist
 
-### Backend
-- `app/schemas.py` (ersetzen) — neue Felder `collection`, `top_k`, `sources`
-- `app/api/chat.py` (ersetzen) — RAG-Pfad integriert
-- `app/services/rag.py` (neu) — Kontext-Builder + Helper
+| Datei | Was es macht |
+|-------|--------------|
+| `app/models.py` | `Document.content_hash` Feld + DocumentCollection |
+| `app/database.py` | Migration + Backfill (defensiv, kein Hard-Crash) |
+| `app/api/documents.py` | Hash-Check vor Upload + Streaming-Variante |
+| `streamlit_app/views/documents_page.py` | ⚠️-Anzeige bei Duplikaten |
+| `tests/test_documents.py` | Tests inkl. 4 für Duplikatsprüfung |
 
-### Frontend
-- `streamlit_app/app.py` (ersetzen) — Sammlungs-Selector, Navigation
-- `streamlit_app/api_client.py` (ersetzen) — Documents/RAG-Methoden
-- `streamlit_app/views/chat_page.py` (ersetzen) — Quellen-Cards
-- `streamlit_app/views/documents_page.py` (neu) — Upload-UI
-
-### Tests + Doku
-- `tests/test_rag.py` (neu) — 8 Tests
-- `docs/phase-3b-rag-chat.md`
-
----
-
-## Einbau in 4 Schritten
-
-### 1. Beide Server stoppen
-`Ctrl + C` in Terminal 1 und 2.
-
-### 2. Update-Pack kopieren
+## Einbau (sauber)
 
 ```bash
 cd /Volumes/Data2/Claude-Code/corporate-llm-platform
-cp -R /Pfad/zu/update-pack-3b/* .
+
+# Cache leeren — sonst nimmt Python evtl. alte .pyc Dateien
+find . -name "__pycache__" -type d -not -path "./.venv/*" -exec rm -rf {} +
+
+# Komplett-Pack drüber kopieren
+cp -R /Pfad/zu/komplett-dedupe/* .
+
+# Beide Server neu starten
+# Terminal 1 (Backend): Ctrl+C + Pfeil↑ Enter
+# Terminal 2 (Streamlit): Ctrl+C + Pfeil↑ Enter
 ```
 
-### 3. Tests laufen lassen
+## Was beim ersten Start passiert
+
+In der **Backend-Konsole** solltest du sehen:
+
+```
+[Migration] documents.content_hash hinzugefügt    ← falls Spalte noch fehlt
+[Migration] X bestehende Dokument(e) nachträglich gehashed
+```
+
+## Tests
 
 ```bash
 source .venv/bin/activate
 pytest tests/ -v
+# → 88 passed, 1 skipped
 ```
 
-Erwartet: **alle bisherigen Tests grün + 8 neue für RAG**.
+## Was sich an der Logik geändert hat
 
-### 4. Beide Server neu starten
+Der Backfill ist jetzt **robuster**:
+- Wenn das Modell-Feld fehlt → Skip + Log (statt Crash)
+- Wenn Files auf Disk fehlen → Skip + Log
+- Jeder unerwartete Fehler → wird gefangen, Server startet trotzdem
 
-```bash
-# Terminal 1
-uvicorn app.main:app --reload
+## Test in der UI
 
-# Terminal 2
-streamlit run streamlit_app/app.py
-```
+1. Beliebige PDF in Sammlung A → ✅ Upload klappt
+2. **Genau dieselbe PDF** in Sammlung A → ⚠️ Warnung mit Datum + Uploader
+3. Dieselbe PDF in Sammlung B → ✅ klappt (andere Sammlung)
+4. PDF umbenennen + in A → ⚠️ erkannt (Hash entscheidet)
 
-Im Browser: **Hard-Reload mit `Cmd+Shift+R`**.
+## Falls trotzdem was schief geht
 
----
-
-## Der WOW-Test
-
-### Stufe 1 — Upload via UI (statt Swagger!)
-
-1. In Streamlit eingeloggt → Sidebar: **📚 Wissensbibliothek**
-2. Tab "⬆️ Upload"
-3. Sammlungs-Name: `test-sammlung`
-4. PDF auswählen → "📤 Hochladen"
-5. ✅ Erfolgsmeldung mit Chunk-Count
-
-### Stufe 2 — RAG aktivieren
-
-1. Sidebar: **Sammlung-Dropdown** unter "📚 Wissensbibliothek"
-2. `test-sammlung` wählen
-3. **Wechsel auf 💬 Chat** → oben siehst du das Banner **"📚 RAG aktiv"**
-
-### Stufe 3 — Magie erleben
-
-Stelle eine Frage zum PDF-Inhalt. Die Antwort kommt mit:
-- 🤖 Antwort, die deine PDF zitiert
-- 📚 **Aufklappbarer Quellen-Bereich** mit Filename, Seite, Relevanz-Score
-- 💰 Tokens & Kosten wie immer
-
-### Stufe 4 — A/B-Vergleich
-
-1. **Mit RAG:** Frag etwas Spezifisches aus deinem PDF → präzise Antwort + Quellen
-2. **Ohne RAG:** Sammlung auf "— keine —" → Claude antwortet aus Allgemeinwissen → keine Quellen
-
-→ Du erlebst direkt, warum RAG der Game-Changer für Corporate-Nutzung ist.
-
-### Stufe 5 — Pharma-User mit RAG (für die ganz Mutigen)
-
-1. Mit Pharma-User einloggen (`pharma@nobelimpressions.com`)
-2. Sammlung wählen
-3. Frage stellen
-4. Antwort hat:
-   - **HWG-konforme Formulierungen** (vom Pharma-Plugin)
-   - **Quellenangaben** aus deinem Dokument (vom RAG)
-   - **Compliance-Hinweis** am Ende
-
-Drei Sicherheitsnetze auf einmal. 🎯
-
----
-
-## Falls etwas hakt
-
-### "Sammlung nicht gefunden"
-→ Hast du tatsächlich ein PDF hochgeladen? Erst Upload via UI/Swagger, dann RAG.
-
-### Quellen-Cards leer
-→ Möglich, dass die Frage zu unspezifisch ist. ChromaDB findet trotzdem die "ähnlichsten" Chunks, aber sie sind dann nicht relevant. Versuch eine konkretere Frage.
-
-### "Backend nicht erreichbar"
-→ Läuft uvicorn? Terminal 1 checken.
-
-### Streamlit zeigt alte Sidebar
-→ Browser-Hard-Reload (`Cmd+Shift+R`)
-
----
-
-## Git-Commit
-
-```bash
-git add .
-git commit -m "Phase 3b: RAG im Chat (Sammlungs-Selector, Quellen-Cards, Upload-UI)"
-git push
-```
-
----
-
-## Was du jetzt hast
-
-- ✅ Vollständiger RAG-Workflow End-to-End
-- ✅ Upload direkt aus Streamlit (kein Swagger nötig)
-- ✅ Sammlungsverwaltung mit Cards + Stats
-- ✅ Quellen-Transparenz (EU AI Act Art. 13!)
-- ✅ Funktioniert auch mit Pharma-Branche kombiniert
-- ✅ Granulare Rechte: Admin/Compliance dürfen verwalten, User dürfen lesen
-
-## Was als nächstes (Phase 3c, optional)
-
-- Pharma-spezifische Sammlungen mit Pflicht-Quellen
-- PDF-Vorschau direkt in der Quellen-Card
-- Sammlung-Beschreibungen + Tags
-- Versionierung von Dokumenten
+Schick mir die **gesamte Backend-Konsolen-Ausgabe** vom Start (von "INFO: Will watch for changes..." bis "ERROR" oder erfolgreichem Start) — dann sehe ich genau was anders ist.

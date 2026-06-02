@@ -16,6 +16,7 @@ from app.config import get_settings
 from app.database import get_session
 from app.llm.anthropic_client import AnthropicClient
 from app.llm.base import BaseLLMClient
+from app.llm.ollama_client import OllamaClient
 from app.models import User
 from app.pricing import calculate_cost
 from app.schemas import ChatMessage, ChatRequest, ChatResponse, UsageInfo
@@ -30,11 +31,24 @@ router = APIRouter(prefix="/chat", tags=["chat"])
 
 
 def _resolve_client(model: str) -> BaseLLMClient:
+    """Wählt den richtigen Provider anhand des Modell-Namens."""
     if model.startswith("claude-"):
         return AnthropicClient()
+    # Ollama-Modelle haben typischerweise das Format `name:tag` (z.B. qwen2.5:7b)
+    # ODER sind klar lokale Modelle (llama*, qwen*, mistral*, phi*, gemma*)
+    if ":" in model or model.lower().startswith((
+        "llama", "qwen", "mistral", "phi", "gemma", "codellama",
+        "deepseek", "wizardlm", "vicuna",
+    )):
+        return OllamaClient()
     raise HTTPException(
         status_code=400,
-        detail=f"Unbekanntes Modell: {model}. Aktuell nur 'claude-*' unterstützt.",
+        detail=(
+            f"Unbekanntes Modell: '{model}'. "
+            f"Cloud-Modelle: 'claude-*'. "
+            f"Lokale Modelle: 'qwen2.5:7b', 'llama3.1:8b' usw. "
+            f"(über Ollama)."
+        ),
     )
 
 
@@ -101,7 +115,7 @@ async def chat(
         token_tracker.log_usage(
             session,
             user_id=user_identifier,
-            provider="anthropic",
+            provider=client.provider_name,
             model=model,
             input_tokens=0,
             output_tokens=0,

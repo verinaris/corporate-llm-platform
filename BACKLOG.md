@@ -58,35 +58,64 @@
 - [ ] 🟡 `[NF]` Lokales Embedding-Modell
 
 ---
-## 📋 Phase 3c — Document-Storage UX-Verbesserungen
+## 📋 Phase 3c — Document-Storage UX-Verbesserungen ✅
 Funktional
 
- 🟡 [F] Upload-Fortschrittsanzeige in % während des Hochladens
-
-Damit User abschätzen kann, wie lange es noch dauert
-Implementierungs-Optionen siehe docs/phase-3c-upload-progress.md (kommt)
-
-
- 🟡 [F] Phasen-Statusmeldung nach Upload-Abschluss:
-"Hochladen → PDF lesen → Chunks erstellen → Embeddings → Fertig"
- 🟢 [F] PDF-Vorschau direkt in der Quellen-Card im Chat
- 🟢 [F] Sammlung-Beschreibungen + Tags
- 🟢 [F] Versionierung von Dokumenten (alte Version archivieren bei Re-Upload)
+- [x] 🟡 `[F]` Upload-Fortschrittsanzeige mit Phasen-Status (NDJSON-Stream)
+- [x] 🟡 `[F]` Phasen-Statusmeldung während Upload:
+  "Hochladen → PDF lesen → Chunks erstellen → Embeddings → Fertig"
+- [x] 🟢 `[F]` Sammlung-Beschreibungen + Tags
+- [x] 🟢 `[F]` Erweiterter Quellen-Kontext + PDF-Download in Chat
+- [ ] 🟢 `[F]` PDF-Inline-Vorschau (Browser-Viewer) — verschoben auf 3d
+- [ ] 🟢 `[F]` Versionierung von Dokumenten (alte Version archivieren bei Re-Upload)
 
 Nichtfunktional
 
- 🟡 [NF] Server-Sent Events (SSE) für Echtzeit-Progress (Backend)
- 🟢 [NF] Background-Job-Queue (z.B. mit RQ oder Celery)
-für Uploads > 100 MB, damit Browser nicht blockiert
+- [x] 🟡 `[NF]` Streaming-Response (NDJSON) für Phasen-Updates
+- [ ] 🟢 `[NF]` Background-Job-Queue (z.B. mit RQ oder Celery)
+  für Uploads > 100 MB, damit Browser nicht blockiert
+
+---
+
+## 📋 Phase 3d — Multi-Format-Upload (neu, geplant)
+
+Aktuell nur PDF. Erweiterung um weitere Formate:
+
+**Text-Formate (einfach):**
+- [ ] 🟡 `[F]` `.txt` Plain Text
+- [ ] 🟡 `[F]` `.md` Markdown
+- [ ] 🟡 `[F]` `.docx` Word (via `python-docx`)
+- [ ] 🟡 `[F]` `.xlsx` Excel (via `openpyxl`)
+- [ ] 🟢 `[F]` `.epub` E-Books (via `ebooklib`)
+
+**Transkripte:**
+- [ ] 🟢 `[F]` `.srt`, `.vtt` Untertitel-Formate
+- [ ] 🟢 `[F]` Markdown-Transkripte
+
+**OCR (mittlere Komplexität):**
+- [ ] 🟢 `[F]` Gescannte PDFs (Bilder ohne Text-Layer)
+- [ ] 🟢 `[F]` Bilder mit Text (`.png`, `.jpg`) via `pytesseract`
+
+**Audio/Video (eigene Phase 7 — lokale ML-Pipeline):**
+- [ ] ⚪ `[F]` MP3/WAV Audio → Whisper-Transkription
+- [ ] ⚪ `[F]` MP4/MOV Video → ffmpeg + Whisper
+
+> **Hinweis:** Audio/Video braucht GPU oder dauert auf CPU. Background-Job-Queue 
+> wird Pflicht. Embeddings können pro Stunde Video mehrere GB werden.
 
 ---
 
 ## 📋 Phase 4 — Multi-LLM-Routing
 
-- [ ] 🔴 `[F]` Ollama-Adapter (lokales Modell)
-- [ ] 🟡 `[F]` OpenAI-Adapter
-- [ ] 🟡 `[F]` Regel-Router (sensible Daten → Ollama)
-- [ ] 🟢 `[F]` Fallback-Logik
+- [x] 🔴 `[F]` Ollama-Adapter (lokales Modell) ✅
+- [x] 🔴 `[F]` Dynamisches Modell-Dropdown (Cloud + Lokal) ✅
+- [x] 🔴 `[F]` Endpoint `/models/available` ✅
+- [x] 🔴 `[F]` Pricing $0 für lokale Modelle ✅
+- [ ] 🟡 `[F]` OpenAI-Adapter (analog zu OllamaClient — bei Bedarf)
+- [ ] 🟡 `[F]` Regel-Router (sensible Daten → automatisch Ollama) — braucht PII-Filter
+- [ ] 🟢 `[F]` Fallback-Logik (Anthropic down → OpenAI/Ollama)
+- [ ] 🟢 `[F]` Streaming-Responses (wortweise statt komplett am Ende)
+- [ ] 🟢 `[F]` Modell-Vergleichs-Modus (parallel an mehrere Provider)
 
 ---
 
@@ -97,6 +126,11 @@ für Uploads > 100 MB, damit Browser nicht blockiert
 - [ ] 🔴 `[F]` Daten-Lösch-Funktion (DSGVO Art. 17)
 - [ ] 🔴 `[F]` Audit-Log-Ansicht
 - [ ] 🟡 `[F]` User-Verwaltung im Frontend
+- [ ] 🟡 `[F]` **Täglicher EZB-Referenzkurs-Fetch** für USD→EUR-Umrechnung
+  - Quelle: https://www.ecb.europa.eu/stats/eurofxref/eurofxref-daily.xml
+  - Cache: 24h (täglich um 16:00 CET aktualisiert)
+  - Fallback: statischer Wert aus `config.py` wenn Fetch fehlschlägt
+  - Optional: historische Kurse für Backdating (z.B. Rechnung für Vormonat)
 
 ---
 

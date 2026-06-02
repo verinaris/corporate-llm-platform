@@ -21,3 +21,31 @@ AVAILABLE_MODELS: dict[str, str] = {
 }
 
 DEFAULT_MODEL_LABEL = "Sonnet 4.6  ·  ausgewogen (Default)"
+
+# ----------------------------------------------------------------------- #
+# Währungs-Anzeige
+# ----------------------------------------------------------------------- #
+# Die Anthropic-API rechnet in USD. Wir zeigen lokal in EUR.
+# Wechselkurs ist eine Schätzung (Mid-Market), kann über ENV überschrieben
+# werden. Für eine echte Rechnungs-Genauigkeit später: tägliches Fetch
+# von EZB-Referenzkurs.
+USD_TO_EUR = float(os.getenv("USD_TO_EUR", "0.92"))
+
+
+def usd_to_eur(usd: float) -> float:
+    """Konvertiert USD-Beträge in EUR (Annäherung)."""
+    return usd * USD_TO_EUR
+
+
+def format_eur(usd: float, decimals: int = 4) -> str:
+    """
+    Formatiert einen USD-Betrag als EUR-String mit deutschem Format.
+
+    Beispiel: 0.3214 USD → '0,2957 €'
+    """
+    eur = usd_to_eur(usd)
+    s = f"{eur:.{decimals}f}"
+    # Deutsche Notation: Punkt → Komma
+    s = s.replace(".", ",")
+    return f"{s} €"
+

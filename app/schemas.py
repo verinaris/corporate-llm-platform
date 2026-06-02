@@ -37,7 +37,11 @@ class SourceReference(BaseModel):
     document_id: int
     filename: str
     page: int
-    excerpt: str = Field(description="Kurzer Auszug aus dem Chunk")
+    excerpt: str = Field(description="Kurzer Auszug aus dem Chunk (~200 Zeichen)")
+    full_text: str = Field(
+        default="",
+        description="Vollständiger Chunk-Text für ausführliche Anzeige",
+    )
     distance: float = Field(
         description="Kleinerer Wert = relevanter (0.0 = perfekte Übereinstimmung)"
     )

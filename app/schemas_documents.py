@@ -1,13 +1,18 @@
 """
-API-Schemas für Dokument-Endpoints (Phase 3a).
+API-Schemas für Dokument-Endpoints (Phase 3a–3c).
 """
 
 from datetime import datetime
+from typing import Optional
 
 from pydantic import BaseModel, Field
 
-from app.models import Document
+from app.models import Document, DocumentCollection
 
+
+# ============================================================ #
+# Documents
+# ============================================================ #
 
 class DocumentOut(BaseModel):
     """Antwort-Repräsentation eines Dokuments."""
@@ -37,14 +42,54 @@ class DocumentOut(BaseModel):
         )
 
 
-class CollectionStats(BaseModel):
-    """Statistik einer Sammlung."""
+# ============================================================ #
+# Collections (Phase 3c)
+# ============================================================ #
+
+class CollectionInfo(BaseModel):
+    """Metadaten einer Sammlung (Beschreibung + Tags)."""
 
     name: str
-    document_count: int
-    chunk_count: int
-    total_size_bytes: int
+    description: Optional[str] = None
+    tags: list[str] = Field(default_factory=list)
+    created_by: Optional[str] = None
+    created_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None
 
+    @classmethod
+    def from_db(cls, c: DocumentCollection) -> "CollectionInfo":
+        tag_list = [t.strip() for t in (c.tags or "").split(",") if t.strip()]
+        return cls(
+            name=c.name,
+            description=c.description,
+            tags=tag_list,
+            created_by=c.created_by,
+            created_at=c.created_at,
+            updated_at=c.updated_at,
+        )
+
+
+class CollectionStats(BaseModel):
+    """Statistik einer Sammlung (kombiniert Info + Zahlen)."""
+
+    name: str
+    description: Optional[str] = None
+    tags: list[str] = Field(default_factory=list)
+    document_count: int = 0
+    chunk_count: int = 0
+    total_size_bytes: int = 0
+
+
+class CollectionUpdate(BaseModel):
+    """Eingabe für PUT /documents/collections/{name}"""
+
+    description: Optional[str] = Field(default=None, max_length=2000)
+    tags: list[str] = Field(default_factory=list, max_length=20)
+
+
+# ============================================================ #
+# Search (Phase 3a)
+# ============================================================ #
 
 class SearchHit(BaseModel):
     """Ein Treffer einer Vektor-Suche."""

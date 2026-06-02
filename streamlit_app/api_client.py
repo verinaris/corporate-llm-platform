@@ -58,6 +58,10 @@ class APIClient:
     def me(self) -> dict[str, Any]:
         return self._get("/auth/me")
 
+    def list_available_models(self) -> dict[str, Any]:
+        """Liefert die Provider/Modelle vom Backend (inkl. lokales Ollama)."""
+        return self._get("/models/available", timeout=15)
+
     # ------------------------------------------------------------------ #
     # Chat
     # ------------------------------------------------------------------ #
@@ -77,13 +81,67 @@ class APIClient:
         if collection:
             payload["collection"] = collection
             payload["top_k"] = top_k
-        return self._post("/chat", payload, timeout=90)
+        # 300s, weil lokale Modelle (Ollama) beim ersten Aufruf erst in den
+        # RAM geladen werden müssen (kann je nach Modell 30-60s dauern)
+        return self._post("/chat", payload, timeout=300)
 
     # ------------------------------------------------------------------ #
     # Documents (Phase 3a/b)
     # ------------------------------------------------------------------ #
     def list_collections(self) -> list[dict[str, Any]]:
         return self._get("/documents/collections")  # type: ignore[return-value]
+
+    def get_collection(self, name: str) -> dict[str, Any]:
+        return self._get(f"/documents/collections/{name}")
+
+    def create_collection(
+        self,
+        name: str,
+        description: Optional[str] = None,
+        tags: Optional[list[str]] = None,
+    ) -> dict[str, Any]:
+        """Sammlung mit Beschreibung anlegen (Phase 3c)."""
+        data: dict[str, Any] = {"name": name}
+        if description:
+            data["description"] = description
+        if tags:
+            data["tags"] = ",".join(tags)
+        try:
+            r = httpx.post(
+                f"{self.base_url}/documents/collections",
+                headers=self._headers(),
+                data=data,
+                timeout=15,
+            )
+        except httpx.RequestError as e:
+            raise APIError(0, f"Backend nicht erreichbar: {e}") from e
+        if r.status_code not in (200, 201):
+            raise APIError(r.status_code, _extract_detail(r))
+        return r.json()
+
+    def update_collection(
+        self,
+        name: str,
+        description: Optional[str] = None,
+        tags: Optional[list[str]] = None,
+    ) -> dict[str, Any]:
+        payload: dict[str, Any] = {}
+        if description is not None:
+            payload["description"] = description
+        if tags is not None:
+            payload["tags"] = tags
+        try:
+            r = httpx.put(
+                f"{self.base_url}/documents/collections/{name}",
+                headers=self._headers(),
+                json=payload,
+                timeout=15,
+            )
+        except httpx.RequestError as e:
+            raise APIError(0, f"Backend nicht erreichbar: {e}") from e
+        if r.status_code != 200:
+            raise APIError(r.status_code, _extract_detail(r))
+        return r.json()
 
     def list_documents(self, collection: Optional[str] = None) -> list[dict[str, Any]]:
         path = "/documents"
@@ -92,22 +150,90 @@ class APIClient:
         return self._get(path)  # type: ignore[return-value]
 
     def upload_document(
-        self, file_bytes: bytes, filename: str, collection: str
+        self, file_bytes: bytes, filename: str, collection: str,
+        description: Optional[str] = None,
     ) -> dict[str, Any]:
-        """PDF hochladen."""
+        """PDF hochladen (klassisch, ohne Phasen-Status)."""
+        data: dict[str, Any] = {"collection": collection}
+        if description:
+            data["description"] = description
         try:
             r = httpx.post(
                 f"{self.base_url}/documents",
                 headers=self._headers(),
                 files={"file": (filename, file_bytes, "application/pdf")},
-                data={"collection": collection},
-                timeout=600,  # 10 Min — große PDFs brauchen lange beim Embedden
+                data=data,
+                timeout=600,
             )
         except httpx.RequestError as e:
             raise APIError(0, f"Backend nicht erreichbar: {e}") from e
         if r.status_code not in (200, 201):
             raise APIError(r.status_code, _extract_detail(r))
         return r.json()
+
+    def upload_document_stream(
+        self, file_bytes: bytes, filename: str, collection: str,
+        description: Optional[str] = None,
+    ):
+        """
+        PDF hochladen mit NDJSON-Phasen-Status (Phase 3c).
+
+        Liefert einen Generator über JSON-Events. Jedes Event ist ein dict
+        mit Feldern 'phase' und 'status', plus phase-spezifische Daten.
+        """
+        import json as _json
+
+        data: dict[str, Any] = {"collection": collection}
+        if description:
+            data["description"] = description
+
+        try:
+            with httpx.stream(
+                "POST",
+                f"{self.base_url}/documents/stream",
+                headers=self._headers(),
+                files={"file": (filename, file_bytes, "application/pdf")},
+                data=data,
+                timeout=600,
+            ) as r:
+                if r.status_code >= 400:
+                    # Bei sofortigen Fehlern (400/413 etc.) sammeln wir den Body
+                    body = b"".join(r.iter_bytes())
+                    try:
+                        err = _json.loads(body.decode("utf-8"))
+                        detail = err.get("detail", body.decode("utf-8"))
+                    except Exception:
+                        detail = body.decode("utf-8", errors="replace")
+                    raise APIError(r.status_code, detail)
+
+                for line in r.iter_lines():
+                    if not line:
+                        continue
+                    try:
+                        yield _json.loads(line)
+                    except _json.JSONDecodeError:
+                        continue
+        except httpx.RequestError as e:
+            raise APIError(0, f"Backend nicht erreichbar: {e}") from e
+
+    def get_document_file(self, document_id: int) -> tuple[bytes, str]:
+        """Lädt die Original-PDF eines Dokuments. Liefert (bytes, filename)."""
+        try:
+            r = httpx.get(
+                f"{self.base_url}/documents/{document_id}/file",
+                headers=self._headers(),
+                timeout=120,
+            )
+        except httpx.RequestError as e:
+            raise APIError(0, f"Backend nicht erreichbar: {e}") from e
+        if r.status_code != 200:
+            raise APIError(r.status_code, _extract_detail(r))
+        # Filename aus Content-Disposition extrahieren
+        cd = r.headers.get("content-disposition", "")
+        filename = "dokument.pdf"
+        if "filename=" in cd:
+            filename = cd.split("filename=", 1)[1].strip('"').strip("'")
+        return r.content, filename
 
     def delete_document(self, document_id: int) -> dict[str, Any]:
         try:

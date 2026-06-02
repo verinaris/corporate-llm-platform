@@ -70,6 +70,7 @@ def build_rag_context(
                 filename=filename,
                 page=page,
                 excerpt=excerpt,
+                full_text=text,
                 distance=distance,
             )
         )

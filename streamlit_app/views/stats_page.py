@@ -1,8 +1,9 @@
-"""Stats-Seite — eigene Token-/Kosten-Auswertung."""
+"""Stats-Seite — eigene Token-/Kosten-Auswertung (Anzeige in EUR)."""
 
 import streamlit as st
 
 from streamlit_app.api_client import APIClient, APIError
+from streamlit_app.config import format_eur, usd_to_eur
 
 
 def render() -> None:
@@ -28,7 +29,14 @@ def render() -> None:
     cols[0].metric("Requests", stats["total_requests"])
     cols[1].metric("Input-Tokens", f"{stats['total_input_tokens']:,}".replace(",", "."))
     cols[2].metric("Output-Tokens", f"{stats['total_output_tokens']:,}".replace(",", "."))
-    cols[3].metric("Kosten (USD)", f"${stats['total_cost_usd']:.4f}")
+    cols[3].metric("Kosten", format_eur(stats["total_cost_usd"], decimals=4))
+
+    # Dezenter Hinweis zum Wechselkurs
+    st.caption(
+        "💱 Kosten umgerechnet aus USD (Anthropic-Abrechnung). "
+        "Lokale Modelle (Ollama) = kostenlos. "
+        "Wechselkurs in `streamlit_app/config.py` anpassbar."
+    )
 
     st.divider()
 
@@ -43,7 +51,7 @@ def render() -> None:
                     "Requests": m["requests"],
                     "Input-Tokens": m["input_tokens"],
                     "Output-Tokens": m["output_tokens"],
-                    "Kosten (USD)": round(m["cost_usd"], 6),
+                    "Kosten (EUR)": round(usd_to_eur(m["cost_usd"]), 6),
                 }
             )
         st.dataframe(rows, use_container_width=True, hide_index=True)
@@ -58,7 +66,7 @@ def render() -> None:
                     "User": user_email,
                     "Requests": u["requests"],
                     "Tokens gesamt": u["total_tokens"],
-                    "Kosten (USD)": round(u["cost_usd"], 6),
+                    "Kosten (EUR)": round(usd_to_eur(u["cost_usd"]), 6),
                 }
             )
         st.dataframe(rows, use_container_width=True, hide_index=True)

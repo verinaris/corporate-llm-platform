@@ -21,6 +21,7 @@ from app.api import auth as auth_api
 from app.api import chat as chat_api
 from app.api import documents as documents_api
 from app.api import health as health_api
+from app.api import models as models_api
 from app.api import stats as stats_api
 from app.api import users as users_api
 from app.auth.passwords import hash_password
@@ -80,6 +81,7 @@ def create_app() -> FastAPI:
     app.include_router(chat_api.router)
     app.include_router(stats_api.router)
     app.include_router(documents_api.router)
+    app.include_router(models_api.router)
 
     return app
 

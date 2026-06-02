@@ -109,6 +109,38 @@ def _fetch_collections() -> list[str]:
     return names
 
 
+def _fetch_models() -> dict[str, str]:
+    """
+    Holt die verfügbaren Modelle vom Backend (cached pro Session).
+
+    Liefert ein Dict {label: model_id}, sortiert: erst Cloud (Anthropic),
+    dann lokale (Ollama).
+    """
+    if "_models_cache" in st.session_state:
+        return st.session_state["_models_cache"]
+
+    try:
+        data = APIClient(token=st.session_state["token"]).list_available_models()
+    except APIError:
+        # Backend down? → Fallback auf statisches Mapping
+        st.session_state["_models_cache"] = dict(AVAILABLE_MODELS)
+        return st.session_state["_models_cache"]
+
+    result: dict[str, str] = {}
+    for provider in data.get("providers", []):
+        if not provider.get("available"):
+            continue
+        for m in provider.get("models", []):
+            label = m.get("label") or m.get("id")
+            result[label] = m["id"]
+
+    if not result:
+        result = dict(AVAILABLE_MODELS)
+
+    st.session_state["_models_cache"] = result
+    return result
+
+
 with st.sidebar:
     st.markdown(f"### {APP_ICON} {APP_TITLE}")
     st.markdown("---")
@@ -169,15 +201,47 @@ with st.sidebar:
     st.markdown("---")
 
     st.markdown("**🤖 Modell**")
-    selected = st.selectbox(
-        "Modell",
-        list(AVAILABLE_MODELS.keys()),
-        index=list(AVAILABLE_MODELS.keys()).index(
-            st.session_state.get("selected_model_label", DEFAULT_MODEL_LABEL)
-        ),
-        label_visibility="collapsed",
-    )
+    model_dict = _fetch_models()  # label -> model_id
+
+    if not model_dict:
+        st.warning("Keine Modelle verfügbar (Backend nicht erreichbar?)")
+        selected = DEFAULT_MODEL_LABEL
+    else:
+        # Default-Index ermitteln
+        labels = list(model_dict.keys())
+        prev_label = st.session_state.get("selected_model_label")
+        if prev_label in labels:
+            default_idx = labels.index(prev_label)
+        else:
+            # Sonnet 4.6 als Default, fallback auf 0
+            default_idx = next(
+                (i for i, lbl in enumerate(labels) if "Sonnet 4.6" in lbl),
+                0,
+            )
+        selected = st.selectbox(
+            "Modell",
+            labels,
+            index=default_idx,
+            label_visibility="collapsed",
+            help=(
+                "☁️ Cloud-Modelle = Claude (kosten pro Token).\n"
+                "💻 Lokale Modelle (Ollama) = laufen auf deinem Mac, "
+                "0$ pro Token, aber langsamer und meist schwächer."
+            ),
+        )
+        # Banner unter dem Selector wenn lokales Modell
+        selected_id = model_dict[selected]
+        if any(selected_id.lower().startswith(p) for p in (
+            "llama", "qwen", "mistral", "phi", "gemma"
+        )) or ":" in selected_id:
+            st.caption("💻 **Lokales Modell** — keine Daten verlassen deinen Mac")
+
     st.session_state["selected_model_label"] = selected
+    st.session_state["selected_model_id"] = model_dict.get(selected) if model_dict else None
+
+    if st.button("🔄 Modelle aktualisieren", use_container_width=True):
+        st.session_state.pop("_models_cache", None)
+        st.rerun()
 
     st.markdown("---")
 
@@ -186,7 +250,7 @@ with st.sidebar:
         st.rerun()
 
     if st.button("🚪 Logout", use_container_width=True):
-        for key in ("token", "user", "messages", "_collections_cache"):
+        for key in ("token", "user", "messages", "_collections_cache", "_models_cache"):
             st.session_state.pop(key, None)
         st.rerun()
 
