@@ -25,11 +25,22 @@ class UserRole(str, Enum):
 
 
 class UserBranch(str, Enum):
-    """Branchenmodul-Zuordnung. Steuert das aktive Plugin."""
+    """
+    Branchen-Profil eines Users.
+
+    Dieses Feld ist der **zentrale Schalter** für die gesamte Plattform:
+    - Pharma-Plugin im Chat wird aktiviert/deaktiviert
+    - Businessplan-Modul zeigt passende Vorlagen
+    - Industry-Checks (Phase 5b) werden getriggert
+    - (später) Agenten-Vorlagen werden gefiltert
+
+    Erweitern: neuen Wert hier + Mapping in
+    app/branches/profiles.py ergänzen.
+    """
 
     GENERIC = "generic"
-    PHARMA = "pharma"
-    # später: LEGAL, TAX, MEDICAL, CRAFT
+    PHARMA = "pharma"             # = Pharma-Beratung & Vertrieb
+    # später: LEGAL, TAX, ENERGY, CRAFT, MEDICAL
 
 
 # ============================================================ #

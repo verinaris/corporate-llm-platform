@@ -34,6 +34,7 @@ def init_db() -> None:
     """Erzeugt alle Tabellen, die als SQLModel definiert sind."""
     # Wichtig: Modelle importieren, damit SQLModel sie kennt
     from app import models  # noqa: F401
+    from app.services.businessplan import models as bp_models  # noqa: F401
 
     SQLModel.metadata.create_all(engine)
     _run_lightweight_migrations()

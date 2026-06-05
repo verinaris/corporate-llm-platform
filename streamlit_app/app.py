@@ -28,6 +28,7 @@ from streamlit_app.config import (
     DEFAULT_MODEL_LABEL,
 )
 from streamlit_app.views import (
+    businessplan_page,
     chat_page,
     documents_page,
     login_page,
@@ -109,6 +110,73 @@ def _fetch_collections() -> list[str]:
     return names
 
 
+def _fetch_industries() -> list[dict]:
+    """Holt verfügbare Branchen-Profile vom Backend (cached pro Session)."""
+    if "_industries_cache" in st.session_state:
+        return st.session_state["_industries_cache"]
+    try:
+        industries = APIClient(token=st.session_state["token"]).list_industries()
+    except APIError:
+        industries = [{
+            "code": "generic", "name": "Generisch", "short_name": "Generic",
+            "icon": "🌐", "description": "", "is_default": True,
+        }]
+    st.session_state["_industries_cache"] = industries
+    return industries
+
+
+def _render_branch_selector(user: dict) -> None:
+    """
+    Branchen-Profil-Wähler in der Sidebar.
+
+    User wählt einmal — Plattform passt sich überall an (Chat-Plugin,
+    Businessplan-Vorlagen, Industry-Checks).
+    """
+    industries = _fetch_industries()
+    current_branch = user.get("branch", "generic")
+
+    # Code → Index für selectbox
+    codes = [i["code"] for i in industries]
+    labels = [f"{i['icon']} {i['name']}" for i in industries]
+    current_idx = codes.index(current_branch) if current_branch in codes else 0
+
+    st.markdown("**🏢 Mein Branchen-Profil**")
+    chosen_label = st.selectbox(
+        "Branche",
+        labels,
+        index=current_idx,
+        label_visibility="collapsed",
+        help=(
+            "Steuert das Pharma-Plugin im Chat, die Vorlagen im Businessplan-"
+            "Generator und (später) verfügbare Agenten."
+        ),
+    )
+    chosen_code = codes[labels.index(chosen_label)]
+
+    # Wenn geändert: an Backend senden + lokalen User-State aktualisieren
+    if chosen_code != current_branch:
+        try:
+            client = APIClient(token=st.session_state["token"])
+            updated = client.update_my_branch(chosen_code)
+            # User-State im Frontend mitziehen
+            st.session_state["user"]["branch"] = updated["branch"]
+            # Caches platt machen, die branchen-abhängig sind
+            st.session_state.pop("_bp_templates_cache", None)
+            st.success(f"Branche gewechselt zu: {updated['branch_profile']['name']}")
+            st.rerun()
+        except APIError as exc:
+            st.error(f"Branche konnte nicht gewechselt werden: {exc.detail}")
+
+    # Aktive Branche → Compliance-Hinweis
+    if current_branch == "pharma":
+        st.info(
+            "💊 **Pharma-Mode aktiv**\n\n"
+            "Chat folgt HWG/AMG-Regeln. Businessplan-Vorlagen + "
+            "Industry-Checks für Pharma sichtbar.",
+            icon="⚖️",
+        )
+
+
 def _fetch_models() -> dict[str, str]:
     """
     Holt die verfügbaren Modelle vom Backend (cached pro Session).
@@ -153,20 +221,14 @@ with st.sidebar:
         "user": "👤",
     }.get(user["role"], "👤")
     st.caption(f"{role_emoji} Rolle: `{user['role']}`")
-    st.caption(f"🏢 Branche: `{user['branch']}`")
 
-    if user["branch"] == "pharma":
-        st.info(
-            "💊 **Pharma-Mode aktiv**\n\n"
-            "Antworten folgen HWG/AMG-Regeln. Jede Antwort enthält einen "
-            "Compliance-Hinweis am Ende.",
-            icon="⚖️",
-        )
+    # --- Branchen-Profil-Wähler ---
+    _render_branch_selector(user)
 
     st.markdown("---")
 
     # Navigation — Documents-Page nur für Admin/Compliance-Officer
-    nav_options = ["💬 Chat", "📊 Verbrauch"]
+    nav_options = ["💬 Chat", "📊 Businessplan", "📈 Verbrauch"]
     if user["role"] in ("admin", "compliance-officer"):
         nav_options.insert(1, "📚 Wissensbibliothek")
     page_label = st.radio(
@@ -263,5 +325,7 @@ if page_label == "💬 Chat":
     chat_page.render()
 elif page_label == "📚 Wissensbibliothek":
     documents_page.render()
-elif page_label == "📊 Verbrauch":
+elif page_label == "📊 Businessplan":
+    businessplan_page.render()
+elif page_label == "📈 Verbrauch":
     stats_page.render()

@@ -63,6 +63,32 @@ class APIClient:
         return self._get("/models/available", timeout=15)
 
     # ------------------------------------------------------------------ #
+    # Profile (Branchen-Profil)
+    # ------------------------------------------------------------------ #
+    def list_industries(self) -> list[dict[str, Any]]:
+        """Verfügbare Branchen-Profile."""
+        return self._get("/profile/industries")  # type: ignore[return-value]
+
+    def get_my_profile(self) -> dict[str, Any]:
+        """Eigenes Profil mit aktiver Branche."""
+        return self._get("/profile/me")
+
+    def update_my_branch(self, branch: str) -> dict[str, Any]:
+        """Wechselt das eigene Branchen-Profil."""
+        try:
+            r = httpx.put(
+                f"{self.base_url}/profile/me/branch",
+                headers=self._headers(),
+                json={"branch": branch},
+                timeout=10,
+            )
+        except httpx.RequestError as e:
+            raise APIError(0, f"Backend nicht erreichbar: {e}") from e
+        if r.status_code >= 400:
+            raise APIError(r.status_code, _extract_detail(r))
+        return r.json()
+
+    # ------------------------------------------------------------------ #
     # Chat
     # ------------------------------------------------------------------ #
     def chat(
@@ -253,6 +279,115 @@ class APIClient:
     # ------------------------------------------------------------------ #
     def stats(self) -> dict[str, Any]:
         return self._get("/stats")
+
+    # ------------------------------------------------------------------ #
+    # Businessplan (Phase 5+)
+    # ------------------------------------------------------------------ #
+    def list_bp_templates(self) -> list[dict[str, Any]]:
+        return self._get("/businessplan/templates")  # type: ignore[return-value]
+
+    def get_bp_template_default(self, template_id: str) -> dict[str, Any]:
+        return self._get(f"/businessplan/templates/{template_id}/default")
+
+    def generate_businessplan(
+        self,
+        input_payload: dict[str, Any],
+        llm_model: Optional[str] = None,
+    ) -> dict[str, Any]:
+        """Berechnet einen Plan ohne ihn zu speichern (Live-Vorschau)."""
+        url = f"{self.base_url}/businessplan/generate"
+        if llm_model:
+            url += f"?llm_model={llm_model}"
+        try:
+            r = httpx.post(
+                url, headers=self._headers(),
+                json=input_payload, timeout=300,
+            )
+        except httpx.RequestError as e:
+            raise APIError(0, f"Backend nicht erreichbar: {e}") from e
+        if r.status_code >= 400:
+            raise APIError(r.status_code, _extract_detail(r))
+        return r.json()
+
+    def save_businessplan(
+        self,
+        input_payload: dict[str, Any],
+        last_score: int = 0,
+    ) -> int:
+        try:
+            r = httpx.post(
+                f"{self.base_url}/businessplan?last_score={last_score}",
+                headers=self._headers(),
+                json=input_payload,
+                timeout=30,
+            )
+        except httpx.RequestError as e:
+            raise APIError(0, f"Backend nicht erreichbar: {e}") from e
+        if r.status_code >= 400:
+            raise APIError(r.status_code, _extract_detail(r))
+        return int(r.json())
+
+    def list_businessplans(self) -> list[dict[str, Any]]:
+        return self._get("/businessplan")  # type: ignore[return-value]
+
+    def get_businessplan(self, plan_id: int) -> dict[str, Any]:
+        return self._get(f"/businessplan/{plan_id}")
+
+    def update_businessplan(
+        self,
+        plan_id: int,
+        input_payload: dict[str, Any],
+        last_score: int = 0,
+    ) -> int:
+        try:
+            r = httpx.put(
+                f"{self.base_url}/businessplan/{plan_id}?last_score={last_score}",
+                headers=self._headers(),
+                json=input_payload,
+                timeout=30,
+            )
+        except httpx.RequestError as e:
+            raise APIError(0, f"Backend nicht erreichbar: {e}") from e
+        if r.status_code >= 400:
+            raise APIError(r.status_code, _extract_detail(r))
+        return int(r.json())
+
+    def delete_businessplan(self, plan_id: int) -> None:
+        try:
+            r = httpx.delete(
+                f"{self.base_url}/businessplan/{plan_id}",
+                headers=self._headers(),
+                timeout=10,
+            )
+        except httpx.RequestError as e:
+            raise APIError(0, f"Backend nicht erreichbar: {e}") from e
+        if r.status_code >= 400:
+            raise APIError(r.status_code, _extract_detail(r))
+
+    def export_businessplan(
+        self,
+        fmt: str,
+        input_payload: dict[str, Any],
+        llm_model: Optional[str] = None,
+    ) -> tuple[bytes, str]:
+        """Generiert Plan + liefert direkt das File. (bytes, filename)"""
+        url = f"{self.base_url}/businessplan/export/{fmt}"
+        if llm_model:
+            url += f"?llm_model={llm_model}"
+        try:
+            r = httpx.post(
+                url, headers=self._headers(),
+                json=input_payload, timeout=300,
+            )
+        except httpx.RequestError as e:
+            raise APIError(0, f"Backend nicht erreichbar: {e}") from e
+        if r.status_code >= 400:
+            raise APIError(r.status_code, _extract_detail(r))
+        cd = r.headers.get("content-disposition", "")
+        filename = f"businessplan.{fmt}"
+        if "filename=" in cd:
+            filename = cd.split("filename=", 1)[1].strip('"').strip("'")
+        return r.content, filename
 
     # ------------------------------------------------------------------ #
     # Helpers

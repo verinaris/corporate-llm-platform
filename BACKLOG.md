@@ -119,6 +119,42 @@ Aktuell nur PDF. Erweiterung um weitere Formate:
 
 ---
 
+## 📋 Phase 5a — Businessplan-Generator ✅ (Grundkomponente für alle Kunden)
+
+**Inspiriert durch Verinaris-MVP, in unsere Architektur integriert.**
+
+### Funktional
+- [x] 🔴 `[F]` Branchenübergreifender Businessplan-Generator
+- [x] 🔴 `[F]` Template-System (KMU Standard, Verinaris-Beispiel)
+- [x] 🟡 `[F]` 3-Jahres-Finanz-Forecast
+- [x] 🟡 `[F]` Härtungs-Checks IHK/HwK/Bank/BA/Compliance/Vertrieb
+- [x] 🟡 `[F]` Fördermittel-Matching mit Regional-Filter
+- [x] 🟡 `[F]` 4-KPI-Scorecard
+- [x] 🟡 `[F]` LLM-Executive-Summary (Anthropic ODER Ollama)
+- [x] 🟢 `[F]` Word/Excel/PDF-Export
+
+### Nichtfunktional
+- [x] 🟡 `[NF]` 19 Tests grün
+- [x] 🟡 `[NF]` Plan-Persistenz in zentraler DB
+- [x] 🔴 `[NF]` Rollenbasiert: Admin sieht alle Pläne, User nur eigene
+
+### Geplante Erweiterungen (Phase 5b+)
+- [x] 🟡 `[F]` Pharma-Beratung & Vertrieb Branchen-Vorlage ✅ (Phase 5b)
+- [x] 🟡 `[F]` Industry-Checks-System (dispatch nach Branche) ✅ (Phase 5b)
+- [x] 🟡 `[F]` Industry-Fördermittel (pharma-spezifisch) ✅ (Phase 5b)
+- [x] 🔴 `[F]` Branchen-Profile als 1. Klasse Bürger ✅ (Phase 5c)
+  - GET/PUT `/profile/me/branch` API
+  - Sidebar mit Branchen-Wähler
+  - Businessplan-Vorlagen nach User-Branche gefiltert
+  - Zentrales Mapping-Modul `app/branches/profiles.py`
+- [ ] 🟡 `[F]` Weitere Branchen-Vorlagen: Steuerberatung, Anwalt, Energie, Handwerk
+- [ ] 🟢 `[F]` RAG-Integration: Marktanalyse-Sammlung automatisch verlinken
+- [ ] 🟢 `[F]` Plan-Versionierung (alte Stände bewahren)
+- [ ] 🟢 `[F]` Live-Charts in Streamlit (statt nur Tabellen)
+- [ ] 🟢 `[F]` Vergleich mehrerer Pläne nebeneinander
+
+---
+
 ## 📋 Phase 5 — Admin-Dashboard
 
 - [ ] 🟡 `[F]` Token-/Kosten-Charts
@@ -173,6 +209,57 @@ Aktuell nur PDF. Erweiterung um weitere Formate:
 ### Provider-Auswahl (EU)
 - [ ] 🟡 `[NF]` Hetzner Cloud / IONOS / STACKIT / Scaleway evaluieren
 - [ ] 🟢 `[NF]` Lasttest
+
+---
+
+## 📋 Phase 7 — Agent-Architektur (geplant)
+
+> **Ziel:** Von "Chatbot mit RAG" zu "intelligentem Assistent mit Tool-Use"
+> hin zu "Multi-Step-Agent mit Human-in-the-Loop". Bewusst schrittweise.
+>
+> **Wichtig:** Für regulierte Branchen (Pharma, Anwalt, Steuer, Bundeswehr-nah)
+> bleibt **Human-in-the-Loop Pflicht** — kein vollautonomer Versand,
+> keine selbstständigen Compliance-Entscheidungen. Volle Autonomie wäre
+> ein Compliance-Killer in deinen Zielbranchen.
+
+### Phase 7a — Tool-Calling-Grundlage (~2 Wochen)
+- [ ] 🟡 `[F]` Tool-Registry-Architektur (`app/tools/` mit BaseTool-Klasse)
+- [ ] 🟡 `[F]` Anthropic Tool-Use (`tools`-Parameter im API-Call)
+- [ ] 🟡 `[F]` Ollama Tool-Use (qwen2.5+, llama3.1+ unterstützen es)
+- [ ] 🟡 `[F]` Erste 5 Tools:
+  - `search_documents(query, collection)` — RAG-Suche
+  - `web_search(query)` — externe Recherche
+  - `generate_pdf_report(content, template)` — PDF-Export
+  - `calculate_date(expression)` — Datum-Berechnung
+  - `query_audit_log(filter)` — Compliance-Abfrage
+- [ ] 🟡 `[F]` Rollen-basierte Tool-Berechtigungen (welche Rolle darf was)
+- [ ] 🟡 `[F]` Tool-Calls im Audit-Log mitloggen
+- [ ] 🟢 `[F]` UI-Erweiterung: "🛠 Werkzeug-Nutzung" anzeigen im Chat
+
+### Phase 7b — Multi-Step-Agents (~4 Wochen)
+- [ ] 🟡 `[F]` Agent-Loop (Plan → Execute → Observe → Adjust)
+- [ ] 🟡 `[F]` Session-Memory (kurzfristig, in DB pro Konversation)
+- [ ] 🟢 `[F]` Long-Term-Memory (Erkenntnisse pro Mandant/Kunde)
+- [ ] 🔴 `[F]` **Human-in-the-Loop**: Genehmigungs-Workflow vor kritischen Aktionen
+- [ ] 🟡 `[F]` Step-Limit + Recovery (Abbruch nach N Schritten oder bei Fehler)
+- [ ] 🟢 `[F]` Streamlit-UI: Agent-Plan visualisieren, Schritt-für-Schritt-Approval
+
+### Phase 7c — Branchen-Agent-Templates
+- [ ] 🟡 `[F][B]` Pharma-Außendienst-Assistent (HWG-konform, kein autonomer Versand)
+- [ ] 🟢 `[F][B]` Steuerberater-Buchungsvorschlag (DATEV-Integration)
+- [ ] 🟢 `[F][B]` Anwalts-Aktenrecherche (Mandant-Mandant-Trennung Pflicht)
+- [ ] 🟢 `[F][B]` Business-Plan-Generator (KMU-Schema)
+- [ ] ⚪ `[F][B]` Energie-Lastprognose-Agent
+
+### Nichtfunktional
+- [ ] 🔴 `[NF]` **Compliance-Check vor jedem Tool-Call** (PII-Filter, Branchen-Regeln)
+- [ ] 🔴 `[NF]` Audit-Trail: jeder Agent-Schritt mit Input/Output speicherbar (DSGVO)
+- [ ] 🟡 `[NF]` Sandbox-Modus für Agenten ohne Außenwirkung (Dry-Run)
+- [ ] 🟡 `[NF]` Token-Budget pro Agent-Lauf (Kostenkontrolle)
+
+> **Architektur-Hinweis:** Bewusst KEIN externes Framework (LangChain,
+> AutoGen, CrewAI). Selbst-gebauter dünner Wrapper um Anthropic/Ollama
+> Tool-Use behält Kontrolle, Verständnis und langfristige Wartbarkeit.
 
 ---
 
@@ -299,3 +386,5 @@ Aktuell nur PDF. Erweiterung um weitere Formate:
 - Passwort-Reset per E-Mail
 - 2-Faktor-Authentifizierung
 - Konversations-Persistenz über Browser-Reload hinaus
+- **GitHub-Strategie umsetzen** (siehe `docs/github-strategie/` — 6 Pinned Repos
+  als Beratungs-Portfolio, mit `corporate-llm-platform` als Showcase)
