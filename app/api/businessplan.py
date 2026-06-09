@@ -27,7 +27,8 @@ from app.branches.profiles import (
     get_industry_for_businessplan,
 )
 from app.database import get_session
-from app.models import User
+from app.models import AuditAction, User
+from app.services import audit
 from app.services.businessplan import (
     BusinessPlan,
     BusinessPlanInput,
@@ -124,6 +125,14 @@ def save_plan(
     session.add(plan)
     session.commit()
     session.refresh(plan)
+
+    audit.log(
+        user_email=user.email,
+        user_role=user.role.value if hasattr(user.role, "value") else str(user.role),
+        action=AuditAction.PLAN_CREATED,
+        target_type="business_plan", target_id=str(plan.id),
+        details={"template_id": plan.template_id, "score": last_score},
+    )
     return int(plan.id)
 
 
@@ -191,8 +200,16 @@ def delete_plan(
 ) -> None:
     """Löscht einen Plan."""
     plan = _load_plan(plan_id, user, session)
+    plan_name = plan.name
     session.delete(plan)
     session.commit()
+    audit.log(
+        user_email=user.email,
+        user_role=user.role.value if hasattr(user.role, "value") else str(user.role),
+        action=AuditAction.PLAN_DELETED,
+        target_type="business_plan", target_id=str(plan_id),
+        details={"name": plan_name},
+    )
 
 
 # ============================================================ #

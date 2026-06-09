@@ -145,3 +145,90 @@ class DocumentCollection(SQLModel, table=True):
     updated_at: datetime = Field(
         default_factory=lambda: datetime.now(timezone.utc)
     )
+
+
+# ============================================================ #
+# Audit-Log (Phase 6a — Compliance)
+# ============================================================ #
+
+class AuditAction(str, Enum):
+    """
+    Auditierte Aktionen.
+
+    Wir loggen nur Aktionen mit Compliance-Relevanz, NICHT jeden API-Call.
+    Faustregel: Wenn ein DSB nachfragt "wer hat wann was getan?" — diese
+    Aktionen muss man beantworten können.
+    """
+
+    # Auth
+    LOGIN = "login"
+    LOGIN_FAILED = "login_failed"
+    LOGOUT = "logout"
+
+    # User-Management
+    USER_CREATED = "user_created"
+    USER_UPDATED = "user_updated"
+    USER_DELETED = "user_deleted"
+    BRANCH_CHANGED = "branch_changed"
+
+    # Daten-Operationen
+    DOCUMENT_UPLOADED = "document_uploaded"
+    DOCUMENT_DELETED = "document_deleted"
+    COLLECTION_CREATED = "collection_created"
+    COLLECTION_DELETED = "collection_deleted"
+
+    # Chat / LLM
+    CHAT_QUERY = "chat_query"
+
+    # Businessplan
+    PLAN_CREATED = "plan_created"
+    PLAN_UPDATED = "plan_updated"
+    PLAN_DELETED = "plan_deleted"
+    PLAN_EXPORTED = "plan_exported"
+
+    # DSGVO
+    USER_DATA_EXPORT = "user_data_export"      # Art. 15: Auskunftsrecht
+    USER_FULL_DELETE = "user_full_delete"      # Art. 17: Vergessen werden
+
+
+class AuditLog(SQLModel, table=True):
+    """
+    Audit-Trail für alle compliance-relevanten Aktionen.
+
+    **DSGVO-Strategie bei User-Löschung (Art. 17):**
+    User-PII (E-Mail, Name) werden im User-Datensatz gelöscht, aber der
+    Audit-Trail-Eintrag bleibt mit `user_email` = "deleted_user_<id>"
+    pseudonymisiert. So bleibt die gesetzliche Aufbewahrungspflicht
+    (z.B. 10 Jahre für Pharma/Steuer) erfüllt, ohne dass die Identität
+    wiederherstellbar ist.
+
+    **Retention:** Standard 10 Jahre (Pharma-konform). Konfigurierbar
+    via Settings, automatisches Lösch-Skript siehe Phase 6c.
+    """
+
+    __tablename__ = "audit_log"
+
+    id: Optional[int] = Field(default=None, primary_key=True)
+    timestamp: datetime = Field(
+        default_factory=lambda: datetime.now(timezone.utc),
+        index=True,
+    )
+
+    # Wer
+    user_email: str = Field(index=True)        # ggf. pseudonymisiert
+    user_role: str = Field(default="unknown")  # zum Zeitpunkt der Aktion
+
+    # Was
+    action: AuditAction = Field(index=True)
+    target_type: Optional[str] = Field(default=None, index=True)  # "document", "plan", ...
+    target_id: Optional[str] = Field(default=None, index=True)    # z.B. doc-ID
+
+    # Kontext (frei strukturierbar als JSON-String)
+    details: Optional[str] = Field(default=None)  # JSON oder Klartext
+
+    # Technisch
+    ip_address: Optional[str] = Field(default=None)
+    user_agent: Optional[str] = Field(default=None)
+
+    # Ergebnis
+    success: bool = Field(default=True, index=True)

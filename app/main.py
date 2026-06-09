@@ -17,6 +17,7 @@ from fastapi import FastAPI
 from sqlmodel import Session, select
 
 from app import __version__
+from app.api import admin as admin_api
 from app.api import auth as auth_api
 from app.api import businessplan as businessplan_api
 from app.api import chat as chat_api
@@ -86,6 +87,7 @@ def create_app() -> FastAPI:
     app.include_router(documents_api.router)
     app.include_router(models_api.router)
     app.include_router(businessplan_api.router)
+    app.include_router(admin_api.router)
 
     return app
 

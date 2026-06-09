@@ -7,7 +7,7 @@ Trennung von `/users` (Admin-only User-Verwaltung) bewusst: Hier darf jeder
 User seine eigenen Settings ändern, ohne Admin-Recht zu brauchen.
 """
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from pydantic import BaseModel
 from sqlmodel import Session
 
@@ -18,7 +18,8 @@ from app.branches.profiles import (
     list_industry_profiles,
 )
 from app.database import get_session
-from app.models import User, UserBranch
+from app.models import AuditAction, User, UserBranch
+from app.services import audit
 
 router = APIRouter(prefix="/profile", tags=["profile"])
 
@@ -97,6 +98,7 @@ def get_my_profile(
 @router.put("/me/branch", response_model=MyProfileOut)
 def update_my_branch(
     payload: BranchUpdate,
+    request: Request,
     user: User = Depends(get_current_user),
     session: Session = Depends(get_session),
 ) -> MyProfileOut:
@@ -114,9 +116,20 @@ def update_my_branch(
             detail=f"Unbekannte Branche '{payload.branch}'. Erlaubt: {valid}",
         )
 
+    old_branch = user.branch.value if hasattr(user.branch, "value") else str(user.branch)
     user.branch = new_branch
     session.add(user)
     session.commit()
     session.refresh(user)
+
+    audit.log(
+        user_email=user.email,
+        user_role=user.role.value if hasattr(user.role, "value") else str(user.role),
+        action=AuditAction.BRANCH_CHANGED,
+        target_type="user", target_id=str(user.id),
+        details={"from": old_branch, "to": new_branch.value},
+        ip_address=request.client.host if request.client else None,
+        user_agent=request.headers.get("user-agent"),
+    )
 
     return get_my_profile(user=user)

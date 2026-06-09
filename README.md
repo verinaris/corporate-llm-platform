@@ -1,141 +1,232 @@
-# Corporate LLM Platform
+# 🤖 Corporate LLM Platform
 
-Eine **selbst gehostete LLM-Plattform** für Unternehmen — schrittweise aufgebaut zum Lernen.
+> **Eine DSGVO/EU-AI-Act-konforme KI-Plattform für den deutschen Mittelstand.**
+> Co-Pilot mit Audit-Trail — nicht Autopilot.
+> Built and maintained by [Sascha Kern](https://github.com/<dein-username>).
 
-## Vision
+![Tests](https://img.shields.io/badge/tests-146%20passed-brightgreen)
+![Python](https://img.shields.io/badge/python-3.12-blue)
+![FastAPI](https://img.shields.io/badge/FastAPI-async-009688)
+![Streamlit](https://img.shields.io/badge/Streamlit-1.40-FF4B4B)
+![License](https://img.shields.io/badge/license-MIT-yellow)
+![Status](https://img.shields.io/badge/status-active%20development-orange)
+![GDPR](https://img.shields.io/badge/GDPR-Art%2015%20%2B%2017-success)
+![EU AI Act](https://img.shields.io/badge/EU%20AI%20Act-aware-success)
 
-Ein "eigenes ChatGPT" für Firmen mit:
-- Multi-User-Login mit Rollen
-- Anbindung von Firmenwissen (RAG über PDFs/Docs)
-- Austauschbare LLM-Provider (Claude, OpenAI, lokales Ollama)
-- Token-/Kostenauswertung pro User und Modell
+---
 
-## Architektur (Analogie: Restaurant)
+## 🎯 Was diese Plattform ist
 
+Eine produktiv lauffähige LLM-Plattform für den Mittelstand, die zeigt, **wie man KI in regulierten Branchen sicher einführt** — nicht in PowerPoint, sondern als echte, audit-fähige Software.
+
+| Eigenschaft | Was das konkret heißt |
+|---|---|
+| 🇪🇺 **EU-First** | Anthropic EU-Region konfigurierbar, vollständig lokaler Betrieb via Ollama |
+| 🔒 **Datenhoheit by Design** | Sensible Daten können das Haus nie verlassen |
+| 📚 **RAG mit Quellen-Pflicht** | EU AI Act Art. 13 — jede Antwort mit nachvollziehbaren Quellen |
+| 🧩 **Branchen-Profile** | Pharma-Mode mit HWG/AMG/FSA-Filter, erweiterbar |
+| 📊 **Businessplan-Generator** | Bankenfähig, mit Härtungs-Checks + Fördermittel-Matching |
+| 🛡️ **Audit-Trail** | DSGVO Art. 15 (Auskunft) + Art. 17 (Vergessenwerden) — eingebaut |
+| 👥 **Rollen + Compliance** | Admin, Compliance-Officer, Pharma-Referent, User |
+| 🌐 **Multi-LLM** | Cloud (Claude) und lokal (Ollama qwen2.5/llama) parallel |
+
+> **Keine PowerPoint-Plattform.** Echte Software, die Sie selbst hosten können.
+
+---
+
+## 🏗️ Architektur
+
+```mermaid
+graph TB
+    User[👤 User] --> Streamlit[Streamlit Frontend<br/>Port 8501]
+    Streamlit --> FastAPI[FastAPI Backend<br/>Port 8000]
+
+    FastAPI --> Auth[JWT Auth<br/>4 Rollen]
+    FastAPI --> Profile{Branchen-Profil<br/>User.branch}
+
+    Profile -->|generic| Generic[Generic-Prompt]
+    Profile -->|pharma| Pharma[Pharma-Plugin<br/>HWG/AMG/FSA]
+
+    FastAPI --> Router{LLM-Router}
+    Router -->|claude-*| Anthropic[☁️ Anthropic API<br/>EU-Region]
+    Router -->|qwen/llama/...| Ollama[💻 Ollama lokal<br/>localhost:11434]
+
+    FastAPI --> RAG[RAG-Service]
+    RAG --> Chroma[(ChromaDB<br/>Embeddings)]
+
+    FastAPI --> BP[Businessplan-Service<br/>Templates · Checks · Export]
+    FastAPI --> Audit[Audit-Service<br/>Compliance-Log]
+
+    FastAPI --> SQLite[(SQLite<br/>Users · Plans · Audit · Tokens)]
+
+    style Anthropic fill:#e1f5fe
+    style Ollama fill:#fff9c4
+    style Pharma fill:#fce4ec
+    style Audit fill:#c8e6c9
+    style FastAPI fill:#e8f5e9
 ```
-USER (Browser)
-   |
-   v
-Streamlit-Frontend  (= Gastraum)        [Phase 2]
-   |
-   v
-FastAPI Backend     (= Servicepersonal) [Phase 1 — bereits da]
- |   |       |        |
- v   v       v        v
-SQLite ChromaDB  Claude  OpenAI/Ollama
-(Kasse) (Rezept) (Koch1) (Koch2/3)
-```
 
-## Roadmap
+**Analogie:** Wie eine Telefonzentrale mit Mitschnitt — der Router schaltet je nach Anfrage und Sensibilität auf das passende "Gespräch" (externer Cloud-Anschluss oder interner Hausanschluss), und alles wird protokolliert für spätere Audits.
 
-| Phase | Inhalt | Status |
-|-------|--------|--------|
-| 0 | Setup, Repo-Struktur, Doku | ✅ |
-| 1 | API-Gateway: FastAPI + Claude + Token-Logging | ✅ |
-| 2 | Streamlit-Chat-Frontend + Multi-User + Rollen | ⬜ |
-| 3 | RAG: PDF-Upload → ChromaDB → Antwort mit Firmenwissen | ⬜ |
-| 4 | Multi-LLM-Routing: OpenAI + Ollama | ⬜ |
-| 5 | Admin-Dashboard mit Token-/Kostenauswertung | ⬜ |
+---
 
-## Schnellstart (Phase 0 + 1)
+## ✨ Features im Detail
 
-### 1. Voraussetzungen
+### 💬 Chat mit RAG + Quellenpflicht
+- Anthropic Claude (Cloud, EU-Region) ODER lokales Ollama-Modell
+- Modell wird dynamisch in der Sidebar gewählt
+- RAG-Sammlungen mit PDF-Upload, Chunking, Embedding
+- **Quellenangaben in jeder Antwort** (EU AI Act Art. 13 Transparenz-Pflicht)
+- Branchen-spezifische System-Prompts (Pharma: HWG-Hinweise)
 
-- Python ≥ 3.11
-- Ein Anthropic-API-Key (https://console.anthropic.com/)
+### 📊 Businessplan-Generator
+- 3 Vorlagen: **KMU Standard**, **Pharma-Beratung & Vertrieb**, **Verinaris (Beispiel)**
+- Vorlagen sind nach Branchen-Profil **gefiltert** (Pharma-User sieht Pharma-Vorlage, Generic-User nicht)
+- 3-Jahres-Finanz-Forecast + 4-KPI-Scorecard (Reifegrad, Bankenfähigkeit, Förderfähigkeit, Investorenfähigkeit)
+- **Härtungs-Checks** gegen IHK/HwK/Bank/BA/Compliance/Vertrieb
+- **Industry-Checks** für Pharma: HWG-Werbeaussagen-Filter, DSGVO Art. 9, Pharmakovigilanz, lokales-LLM-Empfehlung
+- Fördermittel-Matching mit **Regional-Filter** (DE, RP, BY, BW, NRW) und Branchen-Programmen (KMU-innovativ, ZIM, go-digital)
+- Export: **Word**, **Excel** (4 Sheets), **PDF** (Executive Summary)
 
-### 2. Installation
+### 🏢 Branchen-Profile als 1. Klasse Bürger
+- `User.branch` ist der **zentrale Schalter** der Plattform
+- Wechselbar im UI (Sidebar)
+- Steuert: Chat-Plugin, Businessplan-Vorlagen, Industry-Checks
+- Erweiterbar: neue Branche = 1 Template-Datei + Mapping-Eintrag
+
+### 🛡️ Audit-Trail + DSGVO
+- **Audit-Log** mit 18 Action-Typen (Login, Branchen-Wechsel, Plan-Erstellung, ...)
+- Filter nach User, Aktion, Zeitraum
+- **DSGVO Art. 15** — Auskunftsrecht: vollständiger Datenexport als JSON
+- **DSGVO Art. 17** — Recht auf Vergessenwerden: PII löschen + Pseudonymisierung von Token-Logs und Audit-Trail (gesetzliche Aufbewahrungspflicht 10 Jahre Pharma/Steuer bleibt erfüllt)
+- Best-effort-Logging: Audit-Fehler bricht NIE die Hauptaktion ab
+
+### 👥 Rollen
+- **Admin**: voller Zugriff, DSGVO-Löschungen
+- **Compliance-Officer**: Audit-Log lesen, Wissensbibliothek
+- **Pharma-Referent**: Pharma-Branche aktiv, Chat + Businessplan
+- **User**: Standard-Zugriff
+
+---
+
+## 🚀 Quick Start
+
+### Voraussetzungen
+- macOS / Linux (Windows mit WSL2)
+- Python 3.12+
+- [Ollama](https://ollama.com/download) (für lokale Modelle, optional aber empfohlen)
+
+### In 5 Minuten
 
 ```bash
-# Repo klonen (nachdem du es auf GitHub gepusht hast)
-git clone https://github.com/DEIN-USER/corporate-llm-platform.git
+git clone https://github.com/<dein-username>/corporate-llm-platform.git
 cd corporate-llm-platform
-
-# Virtual Environment anlegen
-python -m venv .venv
-source .venv/bin/activate          # Linux/macOS
-# .venv\Scripts\activate           # Windows
-
-# Dependencies installieren
+python -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
 
-# Environment-Datei vorbereiten
 cp .env.example .env
-# Jetzt .env öffnen und ANTHROPIC_API_KEY eintragen
-```
+# .env editieren: ANTHROPIC_API_KEY, JWT_SECRET, ADMIN_EMAIL, ADMIN_PASSWORD
 
-### 3. Starten
-
-```bash
+# Terminal 1
 uvicorn app.main:app --reload
+
+# Terminal 2
+streamlit run streamlit_app/app.py
+
+# Terminal 3 (optional, für lokale Modelle):
+ollama pull qwen2.5:7b
 ```
 
-Dann im Browser:
-- **API-Doku (Swagger):** http://localhost:8000/docs
-- **Health-Check:** http://localhost:8000/health
-- **Stats:** http://localhost:8000/stats
+→ Browser: http://localhost:8501
 
-### 4. Erstes Chat-Request senden
+---
 
-Über die Swagger-UI unter `/docs` → `POST /chat` → "Try it out":
+## 📚 Dokumentation
 
-```json
-{
-  "messages": [
-    {"role": "user", "content": "Sag Hallo auf Deutsch."}
-  ],
-  "user_id": "test-user"
-}
+| Was | Wo |
+|---|---|
+| **Architektur-Übersicht** | [`docs/architecture.md`](docs/architecture.md) |
+| **Phasen-Dokumentation** | [`docs/phase-*.md`](docs/) |
+| **Branchen-Plugin-Konzept** | [`docs/branchen-architektur.md`](docs/) |
+| **Audit + DSGVO** | [`docs/phase-6a-audit-dsgvo.md`](docs/) |
+| **Backlog (MoSCoW + INVEST)** | [`BACKLOG.md`](BACKLOG.md) |
+
+---
+
+## 🗺️ Roadmap
+
+```mermaid
+gantt
+    title Roadmap Corporate LLM Platform
+    dateFormat YYYY-MM-DD
+    section ✅ Erledigt
+    Phase 0-2: Fundament + Auth + Pharma-Plugin   :done, 2026-04-01, 35d
+    Phase 3: RAG + UX-Polish                       :done, 2026-05-01, 30d
+    Phase 4: Multi-LLM (Cloud + Ollama)            :done, 2026-05-25, 14d
+    Phase 5a-c: Businessplan + Branchen-Profile    :done, 2026-06-01, 14d
+    Phase 6a: Audit-Log + DSGVO                    :done, 2026-06-07, 7d
+    section 🚧 In Arbeit
+    Phase 6b: Token-Charts + User-Verwaltung       :active, 2026-06-14, 14d
+    section 📋 Geplant
+    Phase 7: Agent-Architektur (Tool-Use + HiL)    :2026-07-01, 60d
+    Phase 8: Deployment (Hetzner, PostgreSQL)      :2026-09-01, 30d
 ```
 
-Oder per cURL:
+Vollständige Liste siehe [`BACKLOG.md`](BACKLOG.md).
 
-```bash
-curl -X POST http://localhost:8000/chat \
-  -H "Content-Type: application/json" \
-  -d '{"messages":[{"role":"user","content":"Hallo!"}],"user_id":"test"}'
-```
+---
 
-### 5. Token-Auswertung ansehen
+## 🎓 Lessons Learned
 
-```bash
-curl http://localhost:8000/stats
-```
+Aus über 40 Phasen-Iterationen extrahiert — die strategisch wertvollsten:
 
-Du bekommst eine Aufstellung über:
-- Gesamtzahl Requests
-- Gesamttokens (input/output)
-- Gesamtkosten in USD
-- Aufschlüsselung pro Modell
-- Aufschlüsselung pro User
+1. **Provider-Abstraktion zahlt sich aus.** Erst Anthropic, dann Ollama — ohne den `BaseLLMClient` aus Phase 1 wäre Phase 4 ein Rewrite gewesen.
 
-## Projektstruktur
+2. **Compliance ist kein Feature, sondern Architektur.** DSGVO/AI-Act-konforme Quellenangaben mussten im Daten-Modell sein, nicht im Frontend. Audit-Trail mit Pseudonymisierung haben wir vorausschauend designt.
 
-```
-corporate-llm-platform/
-├── app/
-│   ├── api/              # HTTP-Endpoints (chat, health, stats)
-│   ├── llm/              # LLM-Clients (anthropic, später openai, ollama)
-│   ├── services/         # Token-Tracker
-│   ├── config.py         # Settings aus .env
-│   ├── database.py       # SQLite-Setup
-│   ├── models.py         # DB-Tabellen
-│   ├── schemas.py        # API-Request/Response-Formen
-│   ├── pricing.py        # Modellpreise
-│   └── main.py           # FastAPI-Einstieg
-├── docs/                 # Phasen-Dokumentation
-├── tests/                # Pytest-Tests
-├── .env.example
-├── .gitignore
-└── requirements.txt
-```
+3. **Lokale Modelle ändern das Verkaufsgespräch.** *"Patientendaten verlassen nie das Haus"* ist ein anderer Pitch als "wir vertrauen auf US-Cloud-SOC2".
 
-## Dokumentation
+4. **Doku ist Verkauf.** `BACKLOG.md` zeigt strategisches Denken; `docs/phase-*` zeigen Arbeitsweise. Recruiter, Berater-Kollegen und Kunden-DSBs lesen das genau.
 
-- [`docs/architecture.md`](docs/architecture.md) — Architektur-Überblick
-- [`docs/phase-0-setup.md`](docs/phase-0-setup.md) — Phase 0: Setup
-- [`docs/phase-1-gateway.md`](docs/phase-1-gateway.md) — Phase 1: API-Gateway
+5. **Branchen-Profile gehören auf die Plattform-Ebene, nicht ins Modul.** Wir mussten in Phase 5c refaktorieren, als das klar wurde — danach skaliert die Plattform pro Branche um ein Vielfaches schneller.
 
-## Lizenz
+6. **Streaming-UX schlägt Polling.** Phasen-Status während Upload macht den Unterschied zwischen *"keine Ahnung wie lange"* und *"weiß was passiert"*.
 
-Privates Lernprojekt — Lizenz nach Wahl ergänzen.
+7. **Human-in-the-Loop ist non-negotiable für reguliert.** Auto-Posten, Auto-Senden, Auto-Veröffentlichen sind Compliance-Killer in Pharma. Co-Pilot mit Freigabe-Schritt ist das verkaufbare Modell.
+
+---
+
+## 🛡️ Security & Compliance
+
+- ✅ **Keine echten API-Keys** im Repo — alles via `.env.example`
+- ✅ **`data/` ist .gitignored** — Uploads, DB, Embeddings bleiben lokal
+- ✅ **JWT mit konfigurierbarem Secret** — Production-Validation in `config.py`
+- ✅ **Audit-Log** mit IP-Adresse und Zeitstempel für alle Compliance-relevanten Aktionen
+- ✅ **DSGVO Art. 15 + 17** vollständig implementiert
+- ✅ **Streamlit-Telemetrie deaktiviert** — kein Daten-Leak an Drittsysteme
+- ✅ **Quellen-Pflicht in RAG** — EU AI Act Art. 13 Transparenz-Anforderung
+- ✅ **Pharmakovigilanz-Bewusstsein** in Plan-Templates
+
+Siehe auch [`SECURITY.md`](SECURITY.md) für verantwortungsvolle Offenlegung.
+
+---
+
+## 🤝 Beratung & Kontakt
+
+Wenn dein Unternehmen vor einer ähnlichen Entscheidung steht — KI einführen, Cloud-Strategie definieren, Compliance-Architektur aufsetzen, **kein Auto-Pilot sondern audit-fähiger Co-Pilot** — gerne ein unverbindliches Gespräch:
+
+📧 sascha.kern@nobelimpressions.com
+🔗 [LinkedIn](https://www.linkedin.com/in/<dein-username>)
+📍 Koblenz, Deutschland
+
+> **Wichtig:** Dieses Repository ist **eine Referenz**, kein Produkt. Für eine produktive Einführung in Ihrem Unternehmen ist immer eine individuelle Architektur- und Compliance-Begleitung notwendig.
+
+---
+
+## 📄 Lizenz
+
+[MIT](LICENSE) — kostenlos nutzbar, einschließlich kommerzielle Nutzung, ohne Gewährleistung.
+
+---
+
+<sub>Bauen statt erzählen. Compliance statt Hype. Co-Pilot statt Autopilot.</sub>

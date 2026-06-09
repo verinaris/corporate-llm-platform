@@ -28,6 +28,7 @@ from streamlit_app.config import (
     DEFAULT_MODEL_LABEL,
 )
 from streamlit_app.views import (
+    admin_page,
     businessplan_page,
     chat_page,
     documents_page,
@@ -231,6 +232,7 @@ with st.sidebar:
     nav_options = ["💬 Chat", "📊 Businessplan", "📈 Verbrauch"]
     if user["role"] in ("admin", "compliance-officer"):
         nav_options.insert(1, "📚 Wissensbibliothek")
+        nav_options.append("🛡️ Admin / Compliance")
     page_label = st.radio(
         "Navigation",
         nav_options,
@@ -329,3 +331,5 @@ elif page_label == "📊 Businessplan":
     businessplan_page.render()
 elif page_label == "📈 Verbrauch":
     stats_page.render()
+elif page_label == "🛡️ Admin / Compliance":
+    admin_page.render()

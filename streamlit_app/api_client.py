@@ -89,6 +89,50 @@ class APIClient:
         return r.json()
 
     # ------------------------------------------------------------------ #
+    # Admin / Audit (Phase 6a)
+    # ------------------------------------------------------------------ #
+    def list_audit_log(
+        self,
+        user_email: Optional[str] = None,
+        action: Optional[str] = None,
+        limit: int = 100,
+    ) -> list[dict[str, Any]]:
+        params = {"limit": str(limit)}
+        if user_email:
+            params["user_email"] = user_email
+        if action:
+            params["action"] = action
+        try:
+            r = httpx.get(
+                f"{self.base_url}/admin/audit-log",
+                headers=self._headers(),
+                params=params, timeout=30,
+            )
+        except httpx.RequestError as e:
+            raise APIError(0, f"Backend nicht erreichbar: {e}") from e
+        if r.status_code >= 400:
+            raise APIError(r.status_code, _extract_detail(r))
+        return r.json()
+
+    def list_audit_actions(self) -> list[str]:
+        return self._get("/admin/audit-log/actions")  # type: ignore[return-value]
+
+    def dsgvo_full_delete(self, user_id: int) -> dict[str, Any]:
+        try:
+            r = httpx.delete(
+                f"{self.base_url}/admin/users/{user_id}/dsgvo-delete",
+                headers=self._headers(), timeout=30,
+            )
+        except httpx.RequestError as e:
+            raise APIError(0, f"Backend nicht erreichbar: {e}") from e
+        if r.status_code >= 400:
+            raise APIError(r.status_code, _extract_detail(r))
+        return r.json()
+
+    def dsgvo_export(self, user_id: int) -> dict[str, Any]:
+        return self._get(f"/admin/users/{user_id}/dsgvo-export")
+
+    # ------------------------------------------------------------------ #
     # Chat
     # ------------------------------------------------------------------ #
     def chat(

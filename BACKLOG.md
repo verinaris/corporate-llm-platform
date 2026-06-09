@@ -155,18 +155,30 @@ Aktuell nur PDF. Erweiterung um weitere Formate:
 
 ---
 
-## 📋 Phase 5 — Admin-Dashboard
+## 📋 Phase 5 — Admin-Dashboard (teilweise erledigt durch Phase 6a)
 
+### Phase 6a — Compliance-Pflicht ✅ ERLEDIGT
+- [x] 🔴 `[F]` Audit-Log: Datenmodell + Service ✅
+- [x] 🔴 `[F]` Audit-Hooks (Login, Branche, Plan-Save/Delete, DSGVO) ✅
+- [x] 🔴 `[F]` Audit-Log-Ansicht (Admin/Compliance) ✅
+- [x] 🔴 `[F]` Daten-Lösch-Funktion (DSGVO Art. 17) mit Pseudonymisierung ✅
+- [x] 🟢 `[F]` DSGVO Art. 15 Datenexport ✅
+- [x] 🟡 `[NF]` 16 Tests grün ✅
+
+### Phase 6b — Marketing-Power (offen)
 - [ ] 🟡 `[F]` Token-/Kosten-Charts
-- [ ] 🟡 `[F]` CSV-/Excel-Export
-- [ ] 🔴 `[F]` Daten-Lösch-Funktion (DSGVO Art. 17)
-- [ ] 🔴 `[F]` Audit-Log-Ansicht
-- [ ] 🟡 `[F]` User-Verwaltung im Frontend
+- [ ] 🟡 `[F]` CSV-/Excel-Export Token-Daten
+- [ ] 🟡 `[F]` User-Verwaltung im Frontend (statt nur Admin-CLI)
 - [ ] 🟡 `[F]` **Täglicher EZB-Referenzkurs-Fetch** für USD→EUR-Umrechnung
   - Quelle: https://www.ecb.europa.eu/stats/eurofxref/eurofxref-daily.xml
   - Cache: 24h (täglich um 16:00 CET aktualisiert)
   - Fallback: statischer Wert aus `config.py` wenn Fetch fehlschlägt
   - Optional: historische Kurse für Backdating (z.B. Rechnung für Vormonat)
+
+### Phase 6c — Audit-Erweiterungen (offen, später)
+- [ ] 🟢 `[F]` Weitere Audit-Hooks (Documents, Chat, Collections, Plan-Update/Export)
+- [ ] 🟢 `[NF]` Automatische Retention-Policy für Audit-Log (10 Jahre)
+- [ ] 🟢 `[F]` Anomalie-Detection (z.B. 5x failed login → Alert)
 
 ---
 
