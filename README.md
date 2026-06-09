@@ -2,7 +2,7 @@
 
 > **Eine DSGVO/EU-AI-Act-konforme KI-Plattform für den deutschen Mittelstand.**
 > Co-Pilot mit Audit-Trail — nicht Autopilot.
-> Built and maintained by [Sascha Kern](https://github.com/<dein-username>).
+> Built and maintained by [Sascha Kern](https://github.com/sascha-kern).
 
 ![Tests](https://img.shields.io/badge/tests-146%20passed-brightgreen)
 ![Python](https://img.shields.io/badge/python-3.12-blue)
@@ -119,7 +119,7 @@ graph TB
 ### In 5 Minuten
 
 ```bash
-git clone https://github.com/<dein-username>/corporate-llm-platform.git
+git clone https://github.com/sascha-kern/corporate-llm-platform.git
 cd corporate-llm-platform
 python -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
@@ -216,7 +216,7 @@ Siehe auch [`SECURITY.md`](SECURITY.md) für verantwortungsvolle Offenlegung.
 Wenn dein Unternehmen vor einer ähnlichen Entscheidung steht — KI einführen, Cloud-Strategie definieren, Compliance-Architektur aufsetzen, **kein Auto-Pilot sondern audit-fähiger Co-Pilot** — gerne ein unverbindliches Gespräch:
 
 📧 sascha.kern@nobelimpressions.com
-🔗 [LinkedIn](https://www.linkedin.com/in/<dein-username>)
+🔗 [LinkedIn](https://www.linkedin.com/in/sascha-kern)
 📍 Koblenz, Deutschland
 
 > **Wichtig:** Dieses Repository ist **eine Referenz**, kein Produkt. Für eine produktive Einführung in Ihrem Unternehmen ist immer eine individuelle Architektur- und Compliance-Begleitung notwendig.
