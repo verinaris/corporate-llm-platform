@@ -42,3 +42,5 @@ data/**
 
 # Ausnahme: Die README in data/ erklärt, warum der Rest ignoriert wird
 !data/README.md
+README.OLD.md
+*.OLD.md
