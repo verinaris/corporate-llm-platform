@@ -26,7 +26,7 @@ pyjwt==2.10.0
 httpx==0.27.2
 
 # Frontend (Phase 2b)
-streamlit==1.40.0
+streamlit==1.54.0
 
 # RAG (Phase 3a) — Vektor-DB + PDF-Reader
 chromadb==0.5.20
