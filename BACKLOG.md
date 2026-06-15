@@ -2,6 +2,18 @@
 
 **Stand:** Phase 2b + Quick Wins (BFSG/Cloud)
 **Methode:** MoSCoW + INVEST
+---
+
+## 🎯 Strategischer Fokus (Juni 2026)
+
+**Aktuelle Phase:** Phase 6a abgeschlossen (Audit-Log + DSGVO Art. 15/17)
+**Nächster Sprint:** Pharma-Agenten (Phase 7a — 13 Tage)
+**Pipeline-Lead 1:** Pharma-Beratung (regulatorisch komplex)
+**Pipeline-Lead 2:** Kino Koblenz (Wissens-Wiki, generischer Use-Case)
+
+**Plattform-Story:** Verinaris ist branchen-agnostisch. Pharma ist EIN Profil,
+Wissens-Wiki ist ein weiteres. Kein Spezial-Tool, sondern eine Plattform.
+
 
 ---
 
@@ -77,15 +89,15 @@ Nichtfunktional
 
 ---
 
-## 📋 Phase 3d — Multi-Format-Upload (neu, geplant)
+## 📋 Phase 3d — Multi-Format-Upload
 
-Aktuell nur PDF. Erweiterung um weitere Formate:
+**Status:** Aufgewertet zu 🔴 MUST wegen Kino-Lead (siehe Use-Case Wissens-Wiki)
 
 **Text-Formate (einfach):**
+- [ ] 🔴 `[F]` `.docx` Word (via `python-docx`) — Kino-Lead-Voraussetzung
+- [ ] 🔴 `[F]` `.xlsx` Excel (via `openpyxl`) — Kino-Lead-Voraussetzung
 - [ ] 🟡 `[F]` `.txt` Plain Text
 - [ ] 🟡 `[F]` `.md` Markdown
-- [ ] 🟡 `[F]` `.docx` Word (via `python-docx`)
-- [ ] 🟡 `[F]` `.xlsx` Excel (via `openpyxl`)
 - [ ] 🟢 `[F]` `.epub` E-Books (via `ebooklib`)
 
 **Transkripte:**
@@ -100,7 +112,7 @@ Aktuell nur PDF. Erweiterung um weitere Formate:
 - [ ] ⚪ `[F]` MP3/WAV Audio → Whisper-Transkription
 - [ ] ⚪ `[F]` MP4/MOV Video → ffmpeg + Whisper
 
-> **Hinweis:** Audio/Video braucht GPU oder dauert auf CPU. Background-Job-Queue 
+> **Hinweis:** Audio/Video braucht GPU oder dauert auf CPU. Background-Job-Queue
 > wird Pflicht. Embeddings können pro Stunde Video mehrere GB werden.
 
 ---
@@ -222,6 +234,15 @@ Aktuell nur PDF. Erweiterung um weitere Formate:
 - [ ] 🟡 `[NF]` Hetzner Cloud / IONOS / STACKIT / Scaleway evaluieren
 - [ ] 🟢 `[NF]` Lasttest
 
+### NAS-Deployment (NEU — wegen Use-Case "Wissens-Wiki")
+- [ ] 🟡 `[F]` Synology DSM 7+ Docker-Compose-Setup
+- [ ] 🟡 `[F]` NAS-Pfad-Konfiguration für ChromaDB und Uploads
+- [ ] 🟡 `[F]` Backup-Strategie via Synology Hyper Backup
+- [ ] 🟡 `[F]` Update-Anleitung über NAS-Docker-UI
+- [ ] 🟢 `[F]` QNAP-Variante (sekundär)
+
+
+
 ---
 
 ## 📋 Phase 7 — Agent-Architektur (geplant)
@@ -262,6 +283,42 @@ Aktuell nur PDF. Erweiterung um weitere Formate:
 - [ ] 🟢 `[F][B]` Anwalts-Aktenrecherche (Mandant-Mandant-Trennung Pflicht)
 - [ ] 🟢 `[F][B]` Business-Plan-Generator (KMU-Schema)
 - [ ] ⚪ `[F][B]` Energie-Lastprognose-Agent
+
+---
+
+## 🎯 Use-Case: Internes Wissens-Wiki (branchen-agnostisch)
+
+**Status:** Pilot-Lead vorhanden (Kino in Koblenz)
+**Strategischer Wert:** Beweis "Plattform skaliert auf andere Branchen"
+**Vollständiges Briefing:** [`docs/use-cases/wissens-wiki-kino.md`](docs/use-cases/wissens-wiki-kino.md)
+
+### Funktional
+- [ ] 🟡 `[F]` Branchen-Profil "Wissens-Wiki" als 3. Profil
+  - Generischer System-Prompt für Wissens-Recherche
+  - Tonalität: hilfsbereit, präzise, mit Quellenangaben
+  - Keine Branchen-spezifischen Filter (Generic-LLM)
+- [ ] 🔴 `[F]` Multi-Format-Upload **MUSS** für diesen Use-Case
+  - Word (.docx), Excel (.xlsx), PDF, plain text
+  - → Siehe Phase 3d für Detail-Anforderungen
+- [ ] 🟡 `[F]` Synology-NAS-Deployment-Guide
+  - Docker-Compose für DSM 7+
+  - Datenpfad-Konfiguration auf NAS-Volume
+  - Update-/Backup-Strategie
+
+### Nichtfunktional
+- [ ] 🟡 `[NF]` Performance: Antwort < 5 Sek bei < 500 Dokumenten
+- [ ] 🟢 `[NF]` Mobile-fähiges UI (Streamlit unterstützt das default)
+
+### Erstanwender-Pilot: Kino Koblenz
+- [ ] Erstgespräch nach Pharma-Sprint (Tag 14+)
+- [ ] Anforderungs-Klärung (Datei-Formate, Anzahl, NAS-Modell)
+- [ ] Setup-Angebot erstellen
+- [ ] Demo-Termin mit Beispiel-Indexierung
+
+**Nutzen-Story für Sales:**
+> "Patientendaten? Nein, Kino-Tickets. Mandantenakten? Nein, Steuerbescheide.
+> Egal — gleiche Architektur. Verinaris ist die **Plattform**, nicht ein Spezialfall."
+
 
 ### Nichtfunktional
 - [ ] 🔴 `[NF]` **Compliance-Check vor jedem Tool-Call** (PII-Filter, Branchen-Regeln)

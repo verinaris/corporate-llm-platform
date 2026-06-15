@@ -44,3 +44,4 @@ data/**
 !data/README.md
 README.OLD.md
 *.OLD.md
+*.bak
