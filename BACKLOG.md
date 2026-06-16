@@ -63,6 +63,7 @@ Wissens-Wiki ist ein weiteres. Kein Spezial-Tool, sondern eine Plattform.
 
 - [ ] 🔴 `[F]` PDF-Upload + ChromaDB-Indexierung
 - [ ] 🔴 `[F]` Antwort mit Quellenangabe
+- [ ] 🟡 `[F]` Multi-File-Upload (mehrere PDFs gleichzeitig statt einzeln)
 - [ ] 🟡 `[F]` Mehrere Sammlungen (HR, Technik, Marketing)
 - [ ] 🟢 `[F]` OCR für Scans
 - [ ] 🔴 `[NF]` Quellenangabe = Pflicht (EU AI Act Art. 13)
@@ -79,6 +80,15 @@ Funktional
 - [x] 🟢 `[F]` Sammlung-Beschreibungen + Tags
 - [x] 🟢 `[F]` Erweiterter Quellen-Kontext + PDF-Download in Chat
 - [ ] 🟢 `[F]` PDF-Inline-Vorschau (Browser-Viewer) — verschoben auf 3d
+- [ ] 🟡 `[F]` Multi-File-Upload (mehrere PDFs gleichzeitig statt einzeln)
+  - Use-Case: Bulk-Upload von 18+ Templates
+- [ ] 🟡 `[F]` Copy-Button für KI-Antworten im Chat
+  - Aktuell: keine 1-Klick-Copy-Möglichkeit, mühsame Selektion
+  - Ziel: Copy-Button an jeder Antwort (Markdown + Plaintext)
+- [ ] 🟢 `[F]` Branchen-Filter im RAG-Retrieval
+  - Aktuell: alle Dokumente gleichgewichtet
+  - Ziel: Pro Anfrage Branchen-Kontext setzen, irrelevante Quellen filtern
+  - Beispiel: "Solo-Berater" filtert "Industrie-Katastrophenplanung" raus
 - [ ] 🟢 `[F]` Versionierung von Dokumenten (alte Version archivieren bei Re-Upload)
 
 Nichtfunktional
