@@ -1,0 +1,10 @@
+# Gitleaks Konfiguration für Verinaris
+
+title = "Verinaris gitleaks config"
+
+# Allowlist für Files, die false positives generieren
+[allowlist]
+description = "Ignoriere detect-secrets baseline (enthält nur Hashes, keine echten Secrets)"
+paths = [
+    '''\.secrets\.baseline$''',
+]

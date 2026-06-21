@@ -7,9 +7,11 @@
 ## 🎯 Strategischer Fokus (Juni 2026)
 
 **Aktuelle Phase:** Phase 6a abgeschlossen (Audit-Log + DSGVO Art. 15/17)
-**Nächster Sprint:** Pharma-Agenten (Phase 7a — 13 Tage)
-**Pipeline-Lead 1:** Pharma-Beratung (regulatorisch komplex)
-**Pipeline-Lead 2:** Kino Koblenz (Wissens-Wiki, generischer Use-Case)
+**Nächster Sprint:** Phase 7a — Tool-Use-Grundlage
+
+**Aktive Pipeline:**
+- 🟢 Pharma-Beratung (regulatorisch komplex, AI-Compliance-Assessment)
+- 🟢 Wissens-Wiki-Use-Case (KMU, Multi-Format-Upload + NAS-Deployment)
 
 **Plattform-Story:** Verinaris ist branchen-agnostisch. Pharma ist EIN Profil,
 Wissens-Wiki ist ein weiteres. Kein Spezial-Tool, sondern eine Plattform.

@@ -1,6 +1,6 @@
 # 🎬 Use-Case-Briefing: Internes Wissens-Wiki
 
-**Pilot-Anwender:** Kino in Koblenz (Lead über persönlichen Kontakt)
+**Pilot-Anwender:** KMU (Lead über persönlichen Kontakt)
 **Verallgemeinerung:** Branchen-agnostischer Use-Case "Wissens-Wiki"
 **Plattform:** Verinaris Corporate LLM Platform
 
@@ -8,7 +8,7 @@
 
 ## 🎯 Das Problem
 
-MitarbeiterInnen verbringen Zeit damit, in mehreren digitalen Dokumenten nach Antworten zu suchen — wie laufen Gutschriften? Was sind die Schritte bei einer Rückerstattung? Welcher Ablauf gilt beim Ticketverkauf?
+MitarbeiterInnen verbringen Zeit damit, in mehreren digitalen Dokumenten nach Antworten zu suchen — wie laufen Gutschriften? Was sind die Schritte bei einer Rückerstattung? Welcher Ablauf gilt bei Kundenanfragen?
 
 Heute: **manuelle Suche durch alle Dokumente**
 Morgen: **Frage stellen, Antwort mit Quellenangabe bekommen**
@@ -58,7 +58,7 @@ graph TB
 | Audit-Log | ✅ | Wer hat wann was gefragt |
 | DSGVO Art. 15+17 | ✅ | Daten-Export, Recht auf Löschung |
 
-**Was speziell für Kino noch dazu kommt:**
+**Was speziell noch dazu kommt:**
 
 | Komponente | Aufwand | Phase |
 |---|---|---|
@@ -96,7 +96,7 @@ graph TB
 | EU AI Act Art. 13 (Transparenz) | Quellen-Pflicht in jeder Antwort |
 | Kein "AI Decisioning" | Reine Recherche-Hilfe, keine Entscheidungen |
 
-→ Für ein Kino keine "High-Risk"-Anwendung nach EU AI Act → minimaler Compliance-Aufwand.
+→ Für ein KMU keine "High-Risk"-Anwendung nach EU AI Act → minimaler Compliance-Aufwand.
 
 ---
 
@@ -110,7 +110,7 @@ graph TB
 
 ### Technisch
 - Welches NAS-Modell? (Synology DS220+ aufwärts hat Docker via DSM 7+)
-- Gibt es WLAN / Netzwerk-Infrastruktur im Kino?
+- Gibt es WLAN / Netzwerk-Infrastruktur im KMU-Betrieb?
 - Sollen Mitarbeiter mobil zugreifen (Smartphone) oder nur PC?
 
 ### Geschäftlich
@@ -122,7 +122,7 @@ graph TB
 
 ## 🎯 Mögliches Modell — Pilot + Service
 
-Für den Kino-Inhaber kann das Angebot lauten:
+Für den KMU-Inhaber kann das Angebot lauten:
 
 ```
 📦 Setup-Pauschale (einmalig)
@@ -136,7 +136,7 @@ Für den Kino-Inhaber kann das Angebot lauten:
    - Hotline bei Problemen
 ```
 
-**Begründung der Trennung:** Das ist nicht "Plattform mieten" — die Software gehört dem Kino. Der Service-Vertrag ist freiwillig und jederzeit kündbar.
+**Begründung der Trennung:** Das ist nicht "Plattform mieten" — die Software gehört dem KMU-Betrieb. Der Service-Vertrag ist freiwillig und jederzeit kündbar.
 
 ---
 
@@ -144,7 +144,7 @@ Für den Kino-Inhaber kann das Angebot lauten:
 
 ```mermaid
 gantt
-    title Kino-Pilot — Zeitplan (nach Pharma-Sprint)
+    title KMU-Pilot — Zeitplan (nach Pharma-Sprint)
     dateFormat YYYY-MM-DD
     section Vorbereitung
     Erstgespräch Inhaber          :a1, 2026-06-23, 3d
@@ -168,11 +168,11 @@ gantt
 
 Dieser Use-Case ist **mehr wert als nur ein Kunden-Mandat**:
 
-1. **Beweis Skalierbarkeit:** Pharma war komplex, Kino ist einfacher → zeigt Plattform-Charakter
-2. **Sales-Story:** "Patientendaten? Nein, Kino-Tickets — aber gleiche Architektur"
+1. **Beweis Skalierbarkeit:** Pharma war komplex, KMU-Betrieb ist einfacher → zeigt Plattform-Charakter
+2. **Sales-Story:** "Patientendaten? Nein, Beispiel-Daten — aber gleiche Architektur"
 3. **Niedrige Compliance-Hürde:** Schnell zu Produktivität (Pharma dauert länger)
 4. **Lokale Story:** Synology + Ollama als perfekte Datenhoheits-Demo
-5. **Empfehlbarer Referenzkunde:** Lokaler Kino-Inhaber in Koblenz → nähebasierte Empfehlungen
+5. **Empfehlbarer Referenzkunde:** Lokaler KMU-Inhaber (anonymisiert) → nähebasierte Empfehlungen
 
 ---
 
@@ -191,7 +191,7 @@ Dieser Use-Case ist **mehr wert als nur ein Kunden-Mandat**:
 ## ✅ Konkrete nächste Schritte
 
 ### Vor dem Erstgespräch
-- [ ] Mit Sohn Kontext klären: Was wäre dem Inhaber wichtig?
+- [ ] Mit Kontakt-Kontext klären: Was wäre dem Inhaber wichtig?
 - [ ] Demo-Video vorbereiten (3 Min, in Pharma-Sprint sowieso geplant)
 - [ ] Eine Beispiel-Dokumentation als "Was-wäre-wenn" durch-indexieren
 

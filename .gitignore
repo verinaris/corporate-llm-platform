@@ -45,3 +45,7 @@ data/**
 README.OLD.md
 *.OLD.md
 *.bak
+
+# Test-Artefakte
+.last-update
+*.backup
