@@ -38,6 +38,7 @@ def init_db() -> None:
 
     SQLModel.metadata.create_all(engine)
     _run_lightweight_migrations()
+    _init_trial_state()
 
 
 def _run_lightweight_migrations() -> None:
@@ -143,3 +144,46 @@ def get_session():
     """FastAPI-Dependency für DB-Session."""
     with Session(engine) as session:
         yield session
+
+
+def _init_trial_state() -> None:
+    """
+    Legt den initialen TrialState an, falls noch keiner existiert.
+
+    Diese Funktion ist idempotent: Beim ersten App-Start wird die einzige
+    Zeile in trial_state angelegt (installed_at = jetzt, expires_at = +7d).
+    Bei späteren Starts wird die existierende Zeile nicht angefasst.
+
+    Wichtig: NIE existing.installed_at überschreiben — sonst würde der
+    Trial-Countdown bei jedem Neustart von vorn beginnen.
+
+    Defensiv: Bei Fehler wird der App-Start nicht verhindert.
+    """
+    from datetime import datetime, timedelta, timezone
+
+    from sqlmodel import Session, select
+
+    from app.models import TrialState
+
+    try:
+        with Session(engine) as session:
+            existing = session.exec(select(TrialState)).first()
+            if existing:
+                # Bereits initialisiert — nichts tun
+                return
+
+            now = datetime.now(timezone.utc)
+            state = TrialState(
+                installed_at=now,
+                expires_at=now + timedelta(days=7),
+                notes="Initial installation",
+            )
+            session.add(state)
+            session.commit()
+            print(
+                f"[Trial] TrialState initialisiert — Trial läuft bis "
+                f"{state.expires_at.isoformat()}"
+            )
+    except Exception as exc:
+        # Letzter Fallschirm — Trial-Init darf NIE den App-Start verhindern
+        print(f"[Trial] Init übersprungen wegen Fehler: {exc}")

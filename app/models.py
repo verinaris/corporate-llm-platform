@@ -4,7 +4,7 @@ Datenbank-Modelle.
 SQLModel kombiniert SQLAlchemy (DB) + Pydantic (Validierung).
 """
 
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from enum import Enum
 from typing import Optional
 
@@ -232,3 +232,47 @@ class AuditLog(SQLModel, table=True):
 
     # Ergebnis
     success: bool = Field(default=True, index=True)
+
+
+# ====================================== #
+# Trial / Lizenz
+# ====================================== #
+
+
+class TrialState(SQLModel, table=True):
+    """
+    Verfolgt das Installations-Datum und Lizenz-Status der Verinaris-Instanz.
+
+    Wichtig: Diese Tabelle enthält IMMER nur 1 Zeile — sie repräsentiert die
+    gesamte Installation (nicht einzelne User). Beim ersten App-Start wird
+    die Zeile automatisch angelegt.
+
+    Felder:
+        installed_at: Wann wurde die App das erste Mal gestartet?
+        expires_at: Trial-Ende (= installed_at + 7 Tage)
+        license_key: Optional — für Phase 2 vorbereitet
+        license_valid_until: Optional — Ablaufdatum der Lizenz
+    """
+
+    id: Optional[int] = Field(default=None, primary_key=True)
+    installed_at: datetime = Field(
+        default_factory=lambda: datetime.now(timezone.utc),
+        description="Erster App-Start (UTC)",
+    )
+    expires_at: datetime = Field(
+        description="Trial-Ende (installed_at + 7 Tage)",
+    )
+    license_key: Optional[str] = Field(
+        default=None,
+        max_length=128,
+        description="Lizenz-Schlüssel (Phase 2)",
+    )
+    license_valid_until: Optional[datetime] = Field(
+        default=None,
+        description="Ablaufdatum der aktiven Lizenz",
+    )
+    notes: Optional[str] = Field(
+        default=None,
+        max_length=500,
+        description="Freie Notizen (z.B. 'Initial installation')",
+    )

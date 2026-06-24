@@ -26,6 +26,8 @@ from app.api import health as health_api
 from app.api import models as models_api
 from app.api import profile as profile_api
 from app.api import stats as stats_api
+from app.api import trial as trial_api
+
 from app.api import users as users_api
 from app.auth.passwords import hash_password
 from app.config import get_settings
@@ -80,6 +82,8 @@ def create_app() -> FastAPI:
 
     app.include_router(health_api.router)
     app.include_router(auth_api.router)
+    app.include_router(trial_api.router)
+
     app.include_router(users_api.router)
     app.include_router(profile_api.router)
     app.include_router(chat_api.router)
