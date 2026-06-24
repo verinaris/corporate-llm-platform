@@ -469,6 +469,12 @@ class APIClient:
         return r.json()
 
 
+
+    def get_trial_status(self) -> dict[str, Any]:
+        """Holt den aktuellen Trial-Status (u00f6ffentlich, ohne Auth)."""
+        return self._get("/trial/status", timeout=5)
+
+
 def _extract_detail(response: httpx.Response) -> str:
     """Best-effort: holt eine sinnvolle Fehlermeldung aus der Antwort."""
     try:

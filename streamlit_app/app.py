@@ -35,6 +35,7 @@ from streamlit_app.views import (
     login_page,
     stats_page,
 )
+from streamlit_app.components.trial_banner import render_trial_banner
 
 
 # ----------------------------------------------------------------------- #
@@ -68,6 +69,12 @@ st.markdown(
     """,
     unsafe_allow_html=True,
 )
+
+
+# ----------------------------------------------------------------------- #
+# Trial-Banner (erscheint auf JEDER Seite, vor Auth-Check)
+# ----------------------------------------------------------------------- #
+render_trial_banner()
 
 
 # ----------------------------------------------------------------------- #
