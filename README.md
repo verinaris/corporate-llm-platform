@@ -113,31 +113,46 @@ graph TB
 
 ### Voraussetzungen
 - macOS / Linux (Windows mit WSL2)
-- Python 3.12+
-- [Ollama](https://ollama.com/download) (für lokale Modelle, optional aber empfohlen)
+- **Python 3.10 oder höher** (3.10, 3.11, 3.12 — getestet auf 3.12)
+- [Ollama](https://ollama.com/download) für die lokale LLM-Demo (empfohlen)
+- _Optional_: Anthropic API-Key, wenn du Claude Cloud zusätzlich nutzen willst
+
+> ⚡ **Schnellster Einstieg**: Du brauchst KEINEN Anthropic-Key — die Demo läuft komplett lokal mit Ollama. Das ist auch die kompromissloseste DSGVO-Variante.
 
 ### In 5 Minuten
 
 ```bash
 git clone https://github.com/verinaris/corporate-llm-platform.git
 cd corporate-llm-platform
-python -m venv .venv && source .venv/bin/activate
+
+# 1. Python-Umgebung
+python3 -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
 
+# 2. Konfiguration
 cp .env.example .env
-# .env editieren: ANTHROPIC_API_KEY, JWT_SECRET, ADMIN_EMAIL, ADMIN_PASSWORD
 
-# Terminal 1
+# 3. JWT-Secret generieren und in .env eintragen
+python -c "import secrets; print(secrets.token_urlsafe(32))"
+# → Kopiere den Output in .env bei JWT_SECRET=...
+
+# 4. WICHTIG bei Demo OHNE Anthropic-Key:
+#    In .env setzen → DEFAULT_MODEL=qwen2.5:7b
+
+# 5. Ollama-Modell laden (einmalig, ~5 GB)
+ollama pull qwen2.5:7b
+
+# 6. Backend starten (Terminal 1)
 uvicorn app.main:app --reload
 
-# Terminal 2
+# 7. Frontend starten (Terminal 2)
 streamlit run streamlit_app/app.py
-
-# Terminal 3 (optional, für lokale Modelle):
-ollama pull qwen2.5:7b
 ```
 
-→ Browser: http://localhost:8501
+→ Browser öffnet automatisch: http://localhost:8501
+→ Login mit dem Bootstrap-Admin aus deiner `.env` (Default: `admin@example.com` / `ChangeMe-bitte-aendern`)
+
+> 🛡 **Trial-Banner**: Die Plattform startet mit einer 7-tägigen Testphase. Nach Ablauf erscheint ein freundlicher Hinweis im UI — die App funktioniert aber weiter (siehe [Open Core](#-open-core-modell)).
 
 ---
 
@@ -230,3 +245,35 @@ Wenn dein Unternehmen vor einer ähnlichen Entscheidung steht — KI einführen,
 ---
 
 <sub>Bauen statt erzählen. Compliance statt Hype. Co-Pilot statt Autopilot.</sub>
+
+---
+
+## 🎯 Open Core-Modell
+
+Verinaris ist **Open Source unter MIT-Lizenz**. Die Plattform startet mit einer 7-tägigen Testphase, nach der ein freundlicher Hinweis im UI erscheint.
+
+### Was bedeutet das in der Praxis?
+
+| Modus | Was passiert |
+|---|---|
+| **Tag 1-6** | 🟢 Volle Nutzung, Trial-Banner zeigt verbleibende Zeit |
+| **Tag 7 (< 24h)** | 🟡 Letzter-Tag-Hinweis, alle Funktionen weiter aktiv |
+| **Ab Tag 8** | 🔴 Hinweis-Banner: "Testphase beendet" — App funktioniert **weiterhin** |
+| **Mit Lizenz** | ✅ "Lizenzierte Version aktiv" (Phase 2) |
+
+### Warum kein harter Schutz?
+
+Da Verinaris Open Source ist, können Sie den Hinweis **selbstverständlich selbst entfernen**. Wir setzen auf Transparenz statt Schutz-Mauer:
+
+- **Plattform-Kern** = MIT-Lizenz, kostenlos für jeden
+- **Branchen-Profile** (Pharma HWG/AMG, Anwalt, Steuer) = später kommerziell verfügbar
+- **Consulting + Setup** = Tagessatz-basiert (Beratung)
+- **Enterprise-Features** (SSO, Lizenz-Verwaltung) = kommerziell (Phase 2)
+
+### Was wir Sie bitten
+
+Für **regulierte Branchen** und **Production-Einsatz** empfehlen wir den Verinaris Commercial Plan, der professionellen Support, Schulungen und branchen-spezifische Compliance-Profile beinhaltet.
+
+→ Kontakt: [s_mkern@t-online.de](mailto:s_mkern@t-online.de)
+
+> **Transparenz als Verkaufsargument.** Für CIOs und DSBs in regulierten Branchen ist Open Source kein Risiko — es ist ein Vertrauens-Hebel. Lesen Sie unseren Code, prüfen Sie ihn, hosten Sie ihn selbst.
