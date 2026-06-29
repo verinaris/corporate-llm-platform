@@ -230,7 +230,7 @@ Siehe auch [`SECURITY.md`](SECURITY.md) für verantwortungsvolle Offenlegung.
 
 Wenn dein Unternehmen vor einer ähnlichen Entscheidung steht — KI einführen, Cloud-Strategie definieren, Compliance-Architektur aufsetzen, **kein Auto-Pilot sondern audit-fähiger Co-Pilot** — gerne ein unverbindliches Gespräch:
 
-📧 sascha.kern@nobelimpressions.com
+📧 s_mkern@t-online.de
 🔗 [LinkedIn](https://www.linkedin.com/in/verinaris)
 📍 Koblenz, Deutschland
 

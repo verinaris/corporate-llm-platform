@@ -103,11 +103,11 @@ Nichtfunktional
 
 ## 📋 Phase 3d — Multi-Format-Upload
 
-**Status:** Aufgewertet zu 🔴 MUST wegen Kino-Lead (siehe Use-Case Wissens-Wiki)
+**Status:** Aufgewertet zu 🔴 MUST wegen KMU-Pilot (siehe Use-Case Wissens-Wiki)
 
 **Text-Formate (einfach):**
-- [ ] 🔴 `[F]` `.docx` Word (via `python-docx`) — Kino-Lead-Voraussetzung
-- [ ] 🔴 `[F]` `.xlsx` Excel (via `openpyxl`) — Kino-Lead-Voraussetzung
+- [ ] 🔴 `[F]` `.docx` Word (via `python-docx`) — KMU-Pilot-Voraussetzung
+- [ ] 🔴 `[F]` `.xlsx` Excel (via `openpyxl`) — KMU-Pilot-Voraussetzung
 - [ ] 🟡 `[F]` `.txt` Plain Text
 - [ ] 🟡 `[F]` `.md` Markdown
 - [ ] 🟢 `[F]` `.epub` E-Books (via `ebooklib`)
@@ -300,9 +300,9 @@ Nichtfunktional
 
 ## 🎯 Use-Case: Internes Wissens-Wiki (branchen-agnostisch)
 
-**Status:** Pilot-Lead vorhanden (Kino in Koblenz)
+**Status:** Pilot-Lead vorhanden (KMU-Betrieb)
 **Strategischer Wert:** Beweis "Plattform skaliert auf andere Branchen"
-**Vollständiges Briefing:** [`docs/use-cases/wissens-wiki-kino.md`](docs/use-cases/wissens-wiki-kino.md)
+**Vollständiges Briefing:** [`docs/use-cases/wissens-wiki.md`](docs/use-cases/wissens-wiki.md)
 
 ### Funktional
 - [ ] 🟡 `[F]` Branchen-Profil "Wissens-Wiki" als 3. Profil
@@ -321,14 +321,14 @@ Nichtfunktional
 - [ ] 🟡 `[NF]` Performance: Antwort < 5 Sek bei < 500 Dokumenten
 - [ ] 🟢 `[NF]` Mobile-fähiges UI (Streamlit unterstützt das default)
 
-### Erstanwender-Pilot: Kino Koblenz
+### Erstanwender-Pilot: KMU-Betrieb
 - [ ] Erstgespräch nach Pharma-Sprint (Tag 14+)
 - [ ] Anforderungs-Klärung (Datei-Formate, Anzahl, NAS-Modell)
 - [ ] Setup-Angebot erstellen
 - [ ] Demo-Termin mit Beispiel-Indexierung
 
 **Nutzen-Story für Sales:**
-> "Patientendaten? Nein, Kino-Tickets. Mandantenakten? Nein, Steuerbescheide.
+> "Patientendaten? Nein, Beispiel-Daten. Mandantenakten? Nein, Steuerbescheide.
 > Egal — gleiche Architektur. Verinaris ist die **Plattform**, nicht ein Spezialfall."
 
 

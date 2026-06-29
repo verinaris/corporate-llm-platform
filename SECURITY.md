@@ -5,7 +5,7 @@
 Wenn Sie eine Sicherheitslücke in dieser Plattform entdecken, bitte ich um **verantwortungsvolle Offenlegung** — kein öffentliches Issue, sondern eine direkte Mitteilung.
 
 ### Kontakt
-**E-Mail:** sascha.kern@nobelimpressions.com
+**E-Mail:** s_mkern@t-online.de
 **Betreff:** `[SECURITY] Corporate LLM Platform — kurze Beschreibung`
 
 ### Was bitte mitsenden

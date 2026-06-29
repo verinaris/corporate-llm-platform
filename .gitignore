@@ -49,3 +49,6 @@ README.OLD.md
 # Test-Artefakte
 .last-update
 *.backup
+
+# Interne Strategie-Doku (nicht public)
+docs/github-strategie/

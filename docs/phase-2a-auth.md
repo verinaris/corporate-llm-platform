@@ -85,7 +85,7 @@ Beim ersten App-Start wird ein Admin-User automatisch angelegt:
 6. Jetzt funktioniert `/chat`, `/stats`, `/auth/me`
 
 ### Erster Test
-1. Authorize mit deinem Bootstrap-Admin (z.B. `sascha.kern@nobelimpressions.com` + Passwort aus `.env`)
+1. Authorize mit deinem Bootstrap-Admin (z.B. `s_mkern@t-online.de` + Passwort aus `.env`)
 2. `GET /auth/me` → du siehst dein Profil
 3. `POST /chat` → wie gewohnt, aber jetzt ist `user_id` automatisch deine E-Mail
 
