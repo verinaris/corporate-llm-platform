@@ -624,3 +624,120 @@ Agent:  1. query_audit_log(from="Q2-Start", to="Q2-End")
 ---
 
 *Diese Skizze ist Konzept-Arbeit. Vor Implementation: Open Questions klären, ggf. mit Anwalt zur HiL-Strategie sprechen (gerade für regulierte Branchen).*
+
+---
+
+# 📦 Implementierungs-Status
+
+> **Stand:** 2026-06-30
+> Diese Sektion dokumentiert, was vom Plan oben **tatsächlich umgesetzt** wurde.
+
+## ✅ Komplett implementiert
+
+### 1. Tool-Architektur (Fundament)app/tools/
+├── init.py
+├── base.py              ✅ BaseTool (Abstract Base Class)
+├── registry.py          ✅ ToolRegistry mit Rollen-Filter
+├── calculate_date.py    ✅ CalculateDateTool (Mode 1 + 2)
+└── search_documents.py  ✅ SearchDocumentsTool (RAG-Wrapper)**Key-Decisions umgesetzt:**
+- ✅ Tools als abstrakte Klassen mit `to_anthropic_format()` + `to_ollama_format()`
+- ✅ Rollen-basierte Berechtigung via `allowed_roles`
+- ✅ HiL-Flag `requires_human_oversight` für sensitive Tools (Default: True)
+
+### 2. CalculateDateTool (zwei Modi)
+
+| Mode | Verwendung | Beispiel |
+|---|---|---|
+| **forward_add** | Basis + Tage/Wochen = neues Datum | "Welches Datum ist in 30 Tagen?" |
+| **difference** | Diff zwischen zwei Daten | "In wie vielen Tagen ist Weihnachten?" |
+
+Auto-Mode-Detection: Wenn `target_date` gesetzt → Mode 2, sonst Mode 1.
+
+### 3. SearchDocumentsTool (RAG-Integration)
+
+- Wrappt bestehenden `build_rag_context()` aus `app/services/rag.py`
+- Liefert strukturierte Chunks + Quellenangaben
+- Konvertiert `distance` → `relevance` für intuitive Nutzung
+
+### 4. Anthropic Tool-Use Provider
+
+**Datei:** `app/llm/anthropic_client.py`
+
+```python
+async def chat(
+    self,
+    messages: list[ChatMessage],
+    model: str,
+    max_tokens: int,
+    tools: list[dict] | None = None,        # NEU
+    tool_registry: ToolRegistry | None = None,  # NEU
+    user_id: int | None = None,              # NEU
+) -> LLMResponse:
+```
+
+**Multi-Step-Loop:**
+- ✅ Max 5 Iterationen (Schutz vor Endlos-Loops)
+- ✅ Token-Aggregation über alle Iterationen
+- ✅ Error-Recovery (Tool-Fehler bricht Loop NICHT ab)
+- ✅ Backward-kompatibel (ohne `tools` läuft alles wie vorher)
+
+### 5. Trial-Mechanismus (Begleit-Feature)
+
+- ✅ TrialState-Model (SQLModel)
+- ✅ TrialService mit 4 Zuständen (ACTIVE / EXPIRING_SOON / EXPIRED / LICENSED)
+- ✅ API-Endpoint `/api/trial/status`
+- ✅ Streamlit-Banner (Sofortanzeige auf allen Seiten)
+- ✅ Auto-Init beim ersten App-Start (idempotent)
+
+---
+
+## 🟡 In Planung / Noch nicht implementiert
+
+| # | Komponente | Aufwand | Priorität |
+|---|---|---|---|
+| 1 | Ollama Tool-Use Provider | 2-3h | 🟡 Mittel — für lokalen Demo wichtig |
+| 2 | Audit-Log-Integration in Registry | 1h | 🔴 Hoch — Compliance-Story |
+| 3 | ApprovalToken-Service (HiL) | 3-4h | 🔴 Hoch — für sensitive Tools |
+| 4 | Tool-Use im Chat-Endpoint | 2h | 🟡 Mittel — UX-Integration |
+| 5 | Weitere Tools (SendEmail, etc.) | je 1-2h | 🟢 Niedrig — später |
+
+---
+
+## 🧪 Verifikations-Tests
+
+End-to-End-Test (manuell durchgeführt am 2026-06-30):
+
+```python
+# Frage: "In wie vielen Tagen ist Weihnachten 2026?"
+# Erwartung: Claude ruft calculate_date auf
+# Ergebnis: ✅ 178 Tage, 25.4 Wochen
+```
+
+Tool-Loop-Verhalten:
+- ✅ Claude erkennt Tool-Bedarf korrekt
+- ✅ Multi-Step-Loop funktioniert (verifiziert mit 2 Iterationen)
+- ✅ Token-Aggregation korrekt
+- ✅ Error-Recovery getestet (Bug in `ToolRegistry.execute()` — gefixt)
+
+---
+
+## 💡 Lessons Learned
+
+1. **Anthropic-API-Konventionen:** `tool_use`-Content-Blocks müssen via `.model_dump()` serialisiert werden, um sie in der Message-History zu erhalten.
+
+2. **classmethod vs. method:** `ToolRegistry.execute()` ist eine `classmethod`. Aufruf als `instance.execute(...)` funktioniert dennoch, aber Parameter-Namen müssen stimmen (`name`, nicht `tool_name`).
+
+3. **Tool-Schema-Klarheit:** Wenn ein Tool zwei Modi hat, **explizit dokumentieren** im Schema (z.B. "MODE 1 (Forward-Add): ..."). Sonst wählt das LLM unsicher.
+
+4. **Backward-Kompatibilität:** Optionale Parameter mit Default `None` schützen bestehende Aufrufer vor Breakage.
+
+---
+
+## 📊 Test-Coverage
+
+- `app/tools/calculate_date.py`: Manuelle Tests grün (3 Szenarien)
+- `app/tools/search_documents.py`: Import + Anthropic-Format OK
+- `app/llm/anthropic_client.py`: End-to-End mit Anthropic API OK
+
+> **TODO:** Pytest-Tests in `tests/tools/` nachziehen (aktuell `# noqa` für Phase 7a).
+
