@@ -14,6 +14,8 @@ Verwendung:
 
 from typing import Any
 
+from app.models import AuditAction
+from app.services.audit import log as audit_log
 from app.tools.base import BaseTool
 
 
@@ -82,15 +84,21 @@ class ToolRegistry:
         params: dict,
         user_id: int | None = None,
         user_role: str = "admin",
+        user_email: str = "system@verinaris.local",
     ) -> dict[str, Any]:
         """
         Führt ein Tool aus mit Berechtigungsprüfung und Audit-Log.
 
+        Jeder Aufruf erzeugt einen Audit-Log-Eintrag — auch bei
+        fehlgeschlagenen Berechtigungs-Checks oder Tool-Fehlern
+        (DSB-Nachvollziehbarkeit).
+
         Args:
             name: Name des Tools
             params: Tool-Parameter
-            user_id: ID des aufrufenden Users
+            user_id: ID des aufrufenden Users (für Debug)
             user_role: Rolle des Users (für Berechtigungsprüfung)
+            user_email: Email des Users (für Audit-Log)
 
         Returns:
             Tool-Ergebnis
@@ -101,17 +109,59 @@ class ToolRegistry:
         """
         tool = cls._tools.get(name)
         if not tool:
+            # Kein Audit hier — Tool existiert gar nicht
             raise ToolNotFoundError(f"Tool '{name}' not found")
 
+        # Berechtigungs-Check
         if user_role not in tool.allowed_roles:
+            audit_log(
+                user_email=user_email,
+                action=AuditAction.TOOL_DENIED,
+                user_role=user_role,
+                target_type="tool",
+                target_id=name,
+                details={
+                    "reason": "role_not_allowed",
+                    "required_roles": list(tool.allowed_roles),
+                },
+                success=False,
+            )
             raise PermissionDeniedError(
                 f"Role '{user_role}' is not allowed to use tool '{name}'"
             )
 
-        result = tool.execute(params, user_id=user_id)
+        # Tool ausführen (Fehler-tolerant für Audit)
+        try:
+            result = tool.execute(params, user_id=user_id)
+        except Exception as e:
+            audit_log(
+                user_email=user_email,
+                action=AuditAction.TOOL_FAILED,
+                user_role=user_role,
+                target_type="tool",
+                target_id=name,
+                details={
+                    "error_type": e.__class__.__name__,
+                    "error_message": str(e),
+                    "params_keys": list(params.keys()),
+                },
+                success=False,
+            )
+            raise
 
-        # TODO: Audit-Log-Integration (Phase 6a-Service nutzen)
-        # audit.log(user_id=user_id, action=AuditAction.TOOL_CALLED, ...)
+        # Erfolg loggen
+        audit_log(
+            user_email=user_email,
+            action=AuditAction.TOOL_EXECUTED,
+            user_role=user_role,
+            target_type="tool",
+            target_id=name,
+            details={
+                "params_keys": list(params.keys()),
+                "result_type": type(result).__name__,
+            },
+            success=True,
+        )
 
         return result
 

@@ -182,6 +182,11 @@ class AuditAction(str, Enum):
 
     # Businessplan
     PLAN_CREATED = "plan_created"
+
+    # Tool-Use (Phase 7a)
+    TOOL_EXECUTED = "tool_executed"
+    TOOL_FAILED = "tool_failed"
+    TOOL_DENIED = "tool_denied"
     PLAN_UPDATED = "plan_updated"
     PLAN_DELETED = "plan_deleted"
     PLAN_EXPORTED = "plan_exported"
