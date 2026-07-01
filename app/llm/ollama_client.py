@@ -1,30 +1,29 @@
 """
-Ollama-Client (Phase 4).
+Ollama-Client (Phase 4 + Phase 7a Tool-Use).
 
 Spricht mit einem lokalen Ollama-Server (Standard: http://localhost:11434).
-Ollama läuft auf dem Mac (oder einem anderen Rechner im Netz) und stellt
-beliebige Open-Source-Modelle zur Verfügung (Llama, Qwen, Mistral, ...).
 
 Vorteile gegenüber Cloud-APIs:
 - 100% lokal — keine Daten verlassen das Gerät
 - Keine API-Kosten
 - Funktioniert offline
-- Datenschutzfreundlich (besonders für Pharma/Recht/Steuer)
+- Datenschutzfreundlich (Pharma/Recht/Steuer)
 
-Nachteile:
-- Modelle sind meist kleiner / weniger fähig als Frontier-Cloud-Modelle
-- Latenz hängt von eigener Hardware ab
-- Modelle müssen lokal heruntergeladen werden
-
-Analogie: Eigene Hauseigenes Kraftwerk vs. Stromnetz-Anschluss.
-Eigenständig + sicher, aber begrenztere Kapazität.
+Tool-Use: Ab qwen2.5, llama3.1 nativ unterstützt.
 """
+
+import json
 
 import httpx
 
 from app.config import get_settings
 from app.llm.base import BaseLLMClient, LLMResponse
 from app.schemas import ChatMessage
+from app.tools.registry import ToolRegistry
+
+
+# Schutz gegen Endlos-Loops
+MAX_TOOL_ITERATIONS = 5
 
 
 class OllamaClient(BaseLLMClient):
@@ -41,25 +40,109 @@ class OllamaClient(BaseLLMClient):
         messages: list[ChatMessage],
         model: str,
         max_tokens: int,
+        tools: list[dict] | None = None,
+        tool_registry: ToolRegistry | None = None,
+        user_id: int | None = None,
     ) -> LLMResponse:
         """
         Sendet die Nachrichten an Ollama und gibt Text + Token-Verbrauch zurück.
 
-        Ollama unterstützt die System-Message direkt in der messages-Liste —
-        wir können sie einfach durchreichen.
+        Tool-Use (optional): Wenn tools UND tool_registry gesetzt sind, läuft
+        ein Multi-Step-Loop (max. 5 Iterationen). Modell muss Tool-Use
+        unterstützen (qwen2.5, llama3.1, etc.).
         """
-        payload = {
-            "model": model,
-            "messages": [
-                {"role": m.role, "content": m.content} for m in messages
-            ],
-            "stream": False,
-            "options": {
-                "num_predict": max_tokens,
-            },
-        }
+        chat_messages = [{"role": m.role, "content": m.content} for m in messages]
 
-        # Lange Timeout, weil das Modell evtl. erst geladen werden muss
+        # Token-Akkumulation über alle Iterationen
+        total_input_tokens = 0
+        total_output_tokens = 0
+
+        for iteration in range(MAX_TOOL_ITERATIONS):
+            payload = {
+                "model": model,
+                "messages": chat_messages,
+                "stream": False,
+                "options": {
+                    "num_predict": max_tokens,
+                },
+            }
+            if tools:
+                # Ollama nutzt Anthropic-ähnliches Format, aber mit "function"-Wrapper
+                payload["tools"] = self._convert_tools_to_ollama(tools)
+
+            data = await self._call_ollama(payload)
+
+            # Token zählen
+            total_input_tokens += int(data.get("prompt_eval_count", 0))
+            total_output_tokens += int(data.get("eval_count", 0))
+
+            message = data.get("message") or {}
+            content = message.get("content", "")
+            tool_calls = message.get("tool_calls") or []
+
+            # Falls KEINE Tools genutzt werden ODER keine Tool-Calls kamen:
+            # Fertige Antwort
+            if not tools or not tool_registry or not tool_calls:
+                return LLMResponse(
+                    content=content,
+                    model=data.get("model", model),
+                    provider=self.provider_name,
+                    input_tokens=total_input_tokens,
+                    output_tokens=total_output_tokens,
+                )
+
+            # Tool-Loop
+            # 1. Assistant-Message (mit Tool-Calls) zur History
+            chat_messages.append({
+                "role": "assistant",
+                "content": content,
+                "tool_calls": tool_calls,
+            })
+
+            # 2. Tool-Calls ausführen
+            for call in tool_calls:
+                fn = call.get("function", {})
+                tool_name = fn.get("name", "")
+                # Ollama liefert arguments manchmal als String, manchmal als Dict
+                raw_args = fn.get("arguments", {})
+                if isinstance(raw_args, str):
+                    try:
+                        tool_input = json.loads(raw_args)
+                    except json.JSONDecodeError:
+                        tool_input = {}
+                else:
+                    tool_input = raw_args
+
+                result_str = self._execute_tool(
+                    tool_registry=tool_registry,
+                    tool_name=tool_name,
+                    tool_input=tool_input,
+                    user_id=user_id,
+                )
+
+                # 3. Tool-Result als "tool"-Message zurück
+                chat_messages.append({
+                    "role": "tool",
+                    "content": result_str,
+                })
+
+            # Loop fortsetzen
+            continue
+
+        # Loop-Limit erreicht — Notbremse
+        return LLMResponse(
+            content=(
+                "⚠️ Maximales Tool-Iterations-Limit erreicht. "
+                "Die Anfrage ist zu komplex für die aktuelle Konfiguration."
+            ),
+            model=model,
+            provider=self.provider_name,
+            input_tokens=total_input_tokens,
+            output_tokens=total_output_tokens,
+        )
+
+    async def _call_ollama(self, payload: dict) -> dict:
+        """HTTP-Call zum Ollama-Server mit Error-Handling."""
         async with httpx.AsyncClient(timeout=300) as http:
             try:
                 response = await http.post(
@@ -74,27 +157,58 @@ class OllamaClient(BaseLLMClient):
 
         if response.status_code == 404:
             raise RuntimeError(
-                f"Modell '{model}' ist auf dem Ollama-Server nicht verfügbar. "
-                f"Bitte ziehen mit: `ollama pull {model}`"
+                f"Modell '{payload.get('model')}' ist auf dem Ollama-Server "
+                f"nicht verfügbar. Bitte ziehen mit: "
+                f"`ollama pull {payload.get('model')}`"
             )
         if response.status_code >= 400:
             raise RuntimeError(
                 f"Ollama-Fehler [{response.status_code}]: {response.text}"
             )
 
-        data = response.json()
+        return response.json()
 
-        content = (data.get("message") or {}).get("content", "")
-        input_tokens = int(data.get("prompt_eval_count", 0))
-        output_tokens = int(data.get("eval_count", 0))
+    def _convert_tools_to_ollama(self, tools: list[dict]) -> list[dict]:
+        """
+        Konvertiert Anthropic-Tool-Format zu Ollama-Tool-Format.
 
-        return LLMResponse(
-            content=content,
-            model=data.get("model", model),
-            provider=self.provider_name,
-            input_tokens=input_tokens,
-            output_tokens=output_tokens,
-        )
+        Anthropic: {"name": ..., "description": ..., "input_schema": {...}}
+        Ollama:    {"type": "function", "function": {"name": ..., "description": ..., "parameters": {...}}}
+        """
+        ollama_tools = []
+        for tool in tools:
+            ollama_tools.append({
+                "type": "function",
+                "function": {
+                    "name": tool["name"],
+                    "description": tool["description"],
+                    "parameters": tool.get("input_schema", {}),
+                },
+            })
+        return ollama_tools
+
+    def _execute_tool(
+        self,
+        tool_registry: ToolRegistry,
+        tool_name: str,
+        tool_input: dict,
+        user_id: int | None,
+    ) -> str:
+        """
+        Führt ein Tool aus. Result wird als String zurückgegeben (Ollama-Format).
+        Errors werden gefangen und als Error-String zurückgegeben.
+        """
+        try:
+            result = tool_registry.execute(
+                name=tool_name,
+                params=tool_input,
+                user_id=user_id,
+            )
+            return json.dumps(result, ensure_ascii=False)
+        except Exception as e:
+            return json.dumps({
+                "error": f"Tool-Ausführung fehlgeschlagen: {e!s}",
+            }, ensure_ascii=False)
 
 
 # ----------------------------------------------------------------------- #
