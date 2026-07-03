@@ -281,3 +281,46 @@ class TrialState(SQLModel, table=True):
         max_length=500,
         description="Freie Notizen (z.B. 'Initial installation')",
     )
+
+
+# =====================================================================
+# Phase 7a: ApprovalToken für sensitive Tool-Calls
+# =====================================================================
+
+class ApprovalToken(SQLModel, table=True):
+    """
+    Freigabe-Token für sensitive Tool-Aufrufe (Compliance-Vier-Augen-Prinzip).
+
+    Ein Compliance-Officer generiert einen Token für einen konkreten
+    Tool-Aufruf eines Users. Der Token ist 15 Minuten gültig und kann
+    genau EINMAL verwendet werden.
+
+    Analogie: Wie ein Kinoticket — kurze Gültigkeit, ein Film, dann entwertet.
+    """
+
+    __tablename__ = "approval_token"
+
+    id: int | None = Field(default=None, primary_key=True)
+    token: str = Field(index=True, unique=True, description="Zufälliger Token-String")
+
+    # Wer beantragt den Call?
+    requester_email: str = Field(index=True)
+    requester_role: str
+
+    # Welcher Tool-Call soll freigegeben werden?
+    tool_name: str = Field(index=True)
+    params_hash: str = Field(
+        description="SHA256 der Params — verhindert Token-Missbrauch für andere Aufrufe"
+    )
+
+    # Wer hat freigegeben?
+    approver_email: str
+    approver_role: str
+
+    # Zeit-Fenster
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+    expires_at: datetime = Field(description="Token verfällt automatisch")
+
+    # Status
+    used: bool = Field(default=False, description="Wurde der Token schon verbraucht?")
+    used_at: datetime | None = Field(default=None)

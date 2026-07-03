@@ -15,6 +15,7 @@ Verwendung:
 from typing import Any
 
 from app.models import AuditAction
+from app.services.approval import consume_token
 from app.services.audit import log as audit_log
 from app.tools.base import BaseTool
 
@@ -85,6 +86,7 @@ class ToolRegistry:
         user_id: int | None = None,
         user_role: str = "admin",
         user_email: str = "system@verinaris.local",
+        approval_token: str | None = None,
     ) -> dict[str, Any]:
         """
         Führt ein Tool aus mit Berechtigungsprüfung und Audit-Log.
@@ -129,6 +131,23 @@ class ToolRegistry:
             raise PermissionDeniedError(
                 f"Role '{user_role}' is not allowed to use tool '{name}'"
             )
+
+        # Approval-Check für sensitive Tools
+        if tool.requires_human_oversight:
+            if not approval_token or not consume_token(approval_token, name, params):
+                audit_log(
+                    user_email=user_email,
+                    action=AuditAction.TOOL_DENIED,
+                    user_role=user_role,
+                    target_type="tool",
+                    target_id=name,
+                    details={"reason": "approval_token_missing_or_invalid"},
+                    success=False,
+                )
+                raise PermissionDeniedError(
+                    f"Tool '{name}' requires a valid approval token "
+                    "(Vier-Augen-Prinzip)"
+                )
 
         # Tool ausführen (Fehler-tolerant für Audit)
         try:
