@@ -102,6 +102,15 @@ async def chat(
 
     user_identifier = current_user.email
 
+    # --- Tool-Use: Tools fuer User-Rolle aus Registry laden ---
+    user_role = current_user.role.value if current_user.role else "user"
+    available_tools = ToolRegistry.get_for_role(user_role)
+    tools_for_llm = (
+        [t.to_anthropic_format() for t in available_tools]
+        if available_tools
+        else None
+    )
+
     # --- LLM-Aufruf ---
     started = time.perf_counter()
     try:
@@ -109,6 +118,9 @@ async def chat(
             messages=messages_for_llm,
             model=model,
             max_tokens=max_tokens,
+            tools=tools_for_llm,
+            tool_registry=ToolRegistry if tools_for_llm else None,
+            user_id=current_user.id,
         )
     except Exception as exc:
         latency_ms = int((time.perf_counter() - started) * 1000)
