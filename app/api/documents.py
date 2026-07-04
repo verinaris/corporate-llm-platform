@@ -439,10 +439,18 @@ async def upload_document_stream(
             })
 
         except Exception as exc:
+            # Fehler intern loggen, User nur neutrale Meldung zeigen
+            # (CodeQL: information exposure through an exception)
+            import logging
+            logging.getLogger(__name__).exception(
+                "Document upload failed unexpectedly"
+            )
             yield event({
                 "phase": "error",
                 "status": "failed",
-                "detail": f"Unerwarteter Fehler: {exc}",
+                "detail": "Ein unerwarteter Fehler ist aufgetreten. "
+                          "Bitte versuchen Sie es erneut oder kontaktieren "
+                          "Sie den Administrator.",
             })
 
     return StreamingResponse(
