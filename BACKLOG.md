@@ -469,3 +469,16 @@ Nichtfunktional
 - Konversations-Persistenz über Browser-Reload hinaus
 - **GitHub-Strategie umsetzen** (siehe `docs/github-strategie/` — 6 Pinned Repos
   als Beratungs-Portfolio, mit `corporate-llm-platform` als Showcase)
+
+---
+
+## Repo-Konfiguration (Stand 2026-07-04)
+
+- Repository: Public seit 30.06.2026
+- Secret Scanning: aktiv
+- Push Protection: aktiv
+- CodeQL Code Scanning: aktiv
+- Branch Protection main:
+  - Force-Push blockiert
+  - Branch-Loeschung blockiert
+  - PR nicht erzwungen (Solo-Setup)
