@@ -183,7 +183,7 @@ gantt
     section 🚧 In Arbeit
     Phase 6b: Token-Charts + User-Verwaltung       :active, 2026-06-14, 14d
     section 📋 Geplant
-    Phase 7: Agent-Architektur (Tool-Use + HiL)    :2026-07-01, 60d
+    Phase 7: Agent-Architektur Tool-Use und HiL     :2026-07-01, 60d
     Phase 8: Deployment (Hetzner, PostgreSQL)      :2026-09-01, 30d
 ```
 
