@@ -175,16 +175,16 @@ gantt
     title Roadmap Corporate LLM Platform
     dateFormat YYYY-MM-DD
     section ✅ Erledigt
-    Phase 0-2: Fundament + Auth + Pharma-Plugin   :done, 2026-04-01, 35d
-    Phase 3: RAG + UX-Polish                       :done, 2026-05-01, 30d
-    Phase 4: Multi-LLM (Cloud + Ollama)            :done, 2026-05-25, 14d
-    Phase 5a-c: Businessplan + Branchen-Profile    :done, 2026-06-01, 14d
-    Phase 6a: Audit-Log + DSGVO                    :done, 2026-06-07, 7d
+    Phase 0-2 Fundament + Auth + Pharma-Plugin   :done, 2026-04-01, 35d
+    Phase 3 RAG + UX-Polish                       :done, 2026-05-01, 30d
+    Phase 4 Multi-LLM Cloud plus Ollama            :done, 2026-05-25, 14d
+    Phase 5a-c Businessplan + Branchen-Profile    :done, 2026-06-01, 14d
+    Phase 6a Audit-Log + DSGVO                    :done, 2026-06-07, 7d
     section 🚧 In Arbeit
-    Phase 6b: Token-Charts + User-Verwaltung       :active, 2026-06-14, 14d
+    Phase 6b Token-Charts + User-Verwaltung       :active, 2026-06-14, 14d
     section 📋 Geplant
-    Phase 7: Agent-Architektur Tool-Use und HiL     :2026-07-01, 60d
-    Phase 8: Deployment (Hetzner, PostgreSQL)      :2026-09-01, 30d
+    Phase 7 Agent-Architektur Tool-Use und HiL     :2026-07-01, 60d
+    Phase 8 Deployment Hetzner und PostgreSQL      :2026-09-01, 30d
 ```
 
 Vollständige Liste siehe [`BACKLOG.md`](BACKLOG.md).
