@@ -324,3 +324,58 @@ class ApprovalToken(SQLModel, table=True):
     # Status
     used: bool = Field(default=False, description="Wurde der Token schon verbraucht?")
     used_at: datetime | None = Field(default=None)
+
+
+# =====================================================================
+# Phase 7b: PendingApproval fuer Compliance-Dashboard
+# =====================================================================
+
+class ApprovalStatus(str, Enum):
+    """Status eines Approval-Antrags."""
+    PENDING = "pending"          # Wartet auf Compliance-Entscheidung
+    APPROVED = "approved"         # Freigegeben, Token wurde ausgestellt
+    REJECTED = "rejected"         # Abgelehnt
+    EXPIRED = "expired"           # Zu lange nicht bearbeitet
+
+
+class PendingApproval(SQLModel, table=True):
+    """
+    Anfrage eines Users auf Tool-Ausfuehrung mit Vier-Augen-Prinzip.
+
+    Wenn ein User ein sensitives Tool aufruft (requires_human_oversight=True),
+    wird ein PendingApproval erstellt. Compliance-Officer sieht diese im
+    Dashboard und kann Approve oder Reject klicken.
+
+    Analogie: Wie ein Antrag im Postfach eines Vorgesetzten.
+    """
+
+    __tablename__ = "pending_approval"
+
+    id: int | None = Field(default=None, primary_key=True)
+
+    # Wer stellt den Antrag?
+    requester_email: str = Field(index=True)
+    requester_role: str
+
+    # Was soll ausgefuehrt werden?
+    tool_name: str = Field(index=True)
+    params_json: str = Field(description="JSON-Serialisierung der Tool-Params")
+    params_hash: str = Field(description="SHA256 der Params (fuer Token-Bindung)")
+
+    # Optional: Kontext/Begruendung des Users
+    reason: str | None = Field(default=None)
+
+    # Wer hat entschieden?
+    decided_by_email: str | None = Field(default=None)
+    decided_by_role: str | None = Field(default=None)
+    decision_notes: str | None = Field(default=None)
+
+    # Zeit-Fenster
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+    decided_at: datetime | None = Field(default=None)
+
+    # Status
+    status: ApprovalStatus = Field(default=ApprovalStatus.PENDING, index=True)
+
+    # Verknüpfung zum ausgestellten Token (falls approved)
+    approval_token: str | None = Field(default=None)

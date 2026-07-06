@@ -741,3 +741,49 @@ Tool-Loop-Verhalten:
 
 > **TODO:** Pytest-Tests in `tests/tools/` nachziehen (aktuell `# noqa` für Phase 7a).
 
+## Phase 7b Start — PendingApproval-System (Backend)
+
+Stand: 2026-07-06
+
+Das ApprovalToken-System aus Phase 7a stellt Tickets aus, aber es fehlte
+der Antrags-Workflow. Phase 7b beginnt mit dem Backend fuer ein
+Compliance-Dashboard.
+
+Analogie: Wie eine Poststelle — User werfen Antraege ein, Compliance
+sammelt sie, entscheidet, gibt Tickets aus.
+
+### Neue Komponenten
+
+- app/models.py: PendingApproval (Tabelle) + ApprovalStatus (Enum)
+- app/services/approval_request.py: create_request, list_pending,
+  approve_request, reject_request, get_request
+
+### Status-Zustaende
+
+- pending: wartet auf Compliance-Entscheidung
+- approved: freigegeben, Token wurde ausgestellt
+- rejected: abgelehnt (mit Pflicht-Begruendung)
+- expired: zu lange nicht bearbeitet (fuer spaeter)
+
+### Sicherheits-Regeln
+
+- Ablehnung ohne Grund verboten (Nachvollziehbarkeit)
+- Doppel-Entscheidung verhindert (kein Race)
+- Params werden als JSON gespeichert (voll rekonstruierbar)
+- Params-Hash gleich wie ApprovalToken (nahtlose Integration)
+
+### Verifikation
+
+6 Szenarien manuell getestet:
+- Antrag stellen
+- Liste offener Antraege abrufen
+- Freigabe erzeugt konsumierbaren Token
+- Ablehnung mit Grund
+- Doppel-Entscheidung blockiert
+- Ablehnung ohne Grund blockiert
+
+### Naechste Schritte
+
+- Compliance-Dashboard-View in Streamlit
+- Chat-Endpoint erzeugt bei sensitivem Tool PendingApproval statt sofortigem Fehler
+- Benachrichtigungen bei Freigabe/Ablehnung
