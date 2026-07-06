@@ -819,3 +819,34 @@ Das Backend (PendingApproval + ApprovalRequestService) hat jetzt eine UI.
 - Antrags-Liste = Anschlagsbrett im Hausflur
 - Approve/Reject = Freigabe- oder Ablehnungs-Stempel
 - Nur Compliance darf stempeln, alle duerfen zuschauen
+
+## Phase 7b Schritt 3 — Chat-Integration (Auto-Antrag)
+
+Stand: 2026-07-06
+
+Die Registry legt jetzt bei sensitiven Tools ohne Token automatisch
+einen PendingApproval-Antrag an, statt hart abzulehnen.
+
+### Neue Exception
+
+- ApprovalPendingError(request_id, tool_name)
+- Trag Request-ID, damit User im UI verlinken kann
+
+### Verhaltens-Matrix
+
+| Situation | Verhalten |
+|---|---|
+| Sensitives Tool + gueltiger Token | Tool laeuft normal |
+| Sensitives Tool + kein Token | Antrag anlegen, ApprovalPendingError werfen |
+| Sensitives Tool + ungueltiger Token | PermissionDeniedError (unveraendert) |
+| Nicht-sensitives Tool | Tool laeuft normal (unveraendert) |
+
+### Audit-Log
+
+Auch der Auto-Antrag wird geloggt (Action: TOOL_DENIED, reason: approval_pending),
+damit nachvollziehbar ist, wer wann was versucht hat — auch wenn ein Antrag daraus wurde.
+
+### Analogie
+
+- Alt: Tuersteher sagt "Nein" (harte Ablehnung)
+- Neu: Tuersteher sagt "Moment, ich frag den Chef" und legt Zettel ins Postfach

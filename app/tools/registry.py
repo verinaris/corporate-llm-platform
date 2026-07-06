@@ -16,6 +16,7 @@ from typing import Any
 
 from app.models import AuditAction
 from app.services.approval import consume_token
+from app.services.approval_request import create_request as create_pending_request
 from app.services.audit import log as audit_log
 from app.tools.base import BaseTool
 
@@ -23,6 +24,22 @@ from app.tools.base import BaseTool
 class ToolNotFoundError(Exception):
     """Wird geworfen, wenn ein nicht-registriertes Tool aufgerufen wird."""
     pass
+
+
+class ApprovalPendingError(Exception):
+    """
+    Wird geworfen, wenn ein sensitives Tool ohne Token aufgerufen wurde
+    und automatisch ein PendingApproval angelegt wurde.
+
+    Analogie: 'Antrag ist im Postkasten, Chef entscheidet noch.'
+    """
+    def __init__(self, request_id: int, tool_name: str):
+        self.request_id = request_id
+        self.tool_name = tool_name
+        super().__init__(
+            f"Tool '{tool_name}' benoetigt Compliance-Freigabe. "
+            f"Antrag #{request_id} wurde eingereicht."
+        )
 
 
 class PermissionDeniedError(Exception):
@@ -134,19 +151,45 @@ class ToolRegistry:
 
         # Approval-Check für sensitive Tools
         if tool.requires_human_oversight:
-            if not approval_token or not consume_token(approval_token, name, params):
+            if approval_token:
+                # Token vorhanden -> pruefen und konsumieren
+                if not consume_token(approval_token, name, params):
+                    audit_log(
+                        user_email=user_email,
+                        action=AuditAction.TOOL_DENIED,
+                        user_role=user_role,
+                        target_type="tool",
+                        target_id=name,
+                        details={"reason": "approval_token_invalid"},
+                        success=False,
+                    )
+                    raise PermissionDeniedError(
+                        f"Approval-Token fuer '{name}' ist ungueltig oder abgelaufen"
+                    )
+            else:
+                # Kein Token -> automatisch Antrag anlegen und ApprovalPending werfen
+                pending = create_pending_request(
+                    requester_email=user_email,
+                    requester_role=user_role,
+                    tool_name=name,
+                    params=params,
+                    reason=None,
+                )
                 audit_log(
                     user_email=user_email,
                     action=AuditAction.TOOL_DENIED,
                     user_role=user_role,
                     target_type="tool",
                     target_id=name,
-                    details={"reason": "approval_token_missing_or_invalid"},
+                    details={
+                        "reason": "approval_pending",
+                        "pending_request_id": pending.id,
+                    },
                     success=False,
                 )
-                raise PermissionDeniedError(
-                    f"Tool '{name}' requires a valid approval token "
-                    "(Vier-Augen-Prinzip)"
+                raise ApprovalPendingError(
+                    request_id=pending.id,
+                    tool_name=name,
                 )
 
         # Tool ausführen (Fehler-tolerant für Audit)
