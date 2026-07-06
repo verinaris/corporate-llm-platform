@@ -122,6 +122,35 @@ async def chat(
             tool_registry=ToolRegistry if tools_for_llm else None,
             user_id=current_user.id,
         )
+    except ApprovalPendingError as exc:
+        # Sensitives Tool -> Antrag angelegt, User informieren
+        latency_ms = int((time.perf_counter() - started) * 1000)
+        token_tracker.log_usage(
+            session,
+            user_id=user_identifier,
+            provider=client.provider_name,
+            model=model,
+            input_tokens=0,
+            output_tokens=0,
+            latency_ms=latency_ms,
+            success=False,
+            error="approval_pending",
+        )
+        # 202 Accepted = "angenommen, wird bearbeitet"
+        raise HTTPException(
+            status_code=202,
+            detail={
+                "status": "approval_pending",
+                "message": (
+                    f"Der Vorgang fuer Tool '{exc.tool_name}' "
+                    f"wurde als Antrag Nr. {exc.request_id} eingereicht. "
+                    "Ein Compliance-Officer wird die Freigabe pruefen. "
+                    "Sie koennen den Status unter 'Freigaben' verfolgen."
+                ),
+                "request_id": exc.request_id,
+                "tool_name": exc.tool_name,
+            },
+        ) from exc
     except Exception as exc:
         latency_ms = int((time.perf_counter() - started) * 1000)
         token_tracker.log_usage(

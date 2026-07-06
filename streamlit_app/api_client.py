@@ -185,6 +185,14 @@ class APIClient:
             )
         except httpx.RequestError as e:
             raise APIError(0, f"Backend nicht erreichbar: {e}") from e
+        if r.status_code == 202:
+            # 202 Accepted: Antrag angenommen, wartet auf Bearbeitung
+            # (z.B. Compliance-Freigabe fuer sensitive Tools)
+            data = r.json()
+            detail = data.get("detail", {})
+            if isinstance(detail, dict):
+                return {"_pending_approval": True, **detail}
+            return {"_pending_approval": True, "message": str(detail)}
         if r.status_code not in (200, 201):
             raise APIError(r.status_code, _extract_detail(r))
         return r.json()

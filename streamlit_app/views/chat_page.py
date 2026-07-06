@@ -85,6 +85,29 @@ def _handle_user_message(prompt: str) -> None:
                 st.session_state["messages"].pop()
                 return
 
+        # Approval-Pending? -> Freundliche Info-Karte statt normale Antwort
+        if response.get("_pending_approval"):
+            request_id = response.get("request_id", "?")
+            tool_name = response.get("tool_name", "?")
+            st.info(
+                f"⏳ **Freigabe erforderlich**\n\n"
+                f"Der Vorgang fuer Tool **{tool_name}** wurde als "
+                f"Antrag **Nr. {request_id}** eingereicht.\n\n"
+                f"Ein Compliance-Officer wird die Freigabe pruefen. "
+                f"Sie koennen den Status unter **Freigaben** verfolgen."
+            )
+            # Nachricht als Hinweis in History speichern und return
+            st.session_state["messages"].append({
+                "role": "assistant",
+                "content": (
+                    f"⏳ Antrag Nr. {request_id} fuer Tool '{tool_name}' "
+                    f"wurde eingereicht. Warte auf Freigabe."
+                ),
+                "sources": [],
+                "usage": {"input_tokens": 0, "output_tokens": 0, "model": "n/a"},
+            })
+            return
+
         st.markdown(response["content"])
 
         sources = response.get("sources", [])

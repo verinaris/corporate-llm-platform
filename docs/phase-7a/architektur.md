@@ -850,3 +850,40 @@ damit nachvollziehbar ist, wer wann was versucht hat — auch wenn ein Antrag da
 
 - Alt: Tuersteher sagt "Nein" (harte Ablehnung)
 - Neu: Tuersteher sagt "Moment, ich frag den Chef" und legt Zettel ins Postfach
+
+## Phase 7b Schritt 4 — User-Feedback im Chat
+
+Stand: 2026-07-06
+
+Der letzte Baustein: Der User sieht im Chat eine freundliche Info-Karte
+statt einer Fehlermeldung, wenn ein Vorgang Compliance-Freigabe braucht.
+
+### End-to-End-Flow (komplett)
+
+1. User schreibt Chat-Nachricht, die zu einem sensitiven Tool fuehrt
+2. Registry legt PendingApproval an, wirft ApprovalPendingError
+3. Chat-Endpoint faengt Error ab, sendet HTTP 202 mit request_id
+4. Streamlit-Client erkennt 202, markiert Response mit _pending_approval
+5. Chat-View zeigt Info-Karte "Antrag Nr. X eingereicht, warte auf Freigabe"
+6. Nutzer wechselt auf "Freigaben"-Seite und wartet auf Compliance-Entscheidung
+7. Compliance-Officer klickt "Freigeben" -> Token wird ausgestellt
+8. (Fuer spaeter: automatisches Retry oder manueller neuer Chat-Versuch)
+
+### HTTP-Semantik
+
+- 200 OK: Normale Antwort
+- 202 Accepted: Antrag angenommen, wartet auf asynchrone Bearbeitung
+- 502 Bad Gateway: Echter LLM-Fehler
+- Der 202-Status ist HTTP-Standard fuer "in Arbeit"
+
+### Analogie
+
+- Statt Fehler-Popup ("kaputt"): Wartezimmer-Nummer beim Arzt
+- Statt Ablehnung ("nein"): "Bitte warten, wird gepruueft"
+
+### Was fuer spaeter offen bleibt
+
+- Automatisches Polling der Antragsstatus
+- Notification bei Freigabe (Toast, E-Mail)
+- Retry-Button im Chat nach Freigabe
+- Historie: wo sehen User ihre eigenen Antraege (nicht nur pending)
