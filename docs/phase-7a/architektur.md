@@ -787,3 +787,35 @@ sammelt sie, entscheidet, gibt Tickets aus.
 - Compliance-Dashboard-View in Streamlit
 - Chat-Endpoint erzeugt bei sensitivem Tool PendingApproval statt sofortigem Fehler
 - Benachrichtigungen bei Freigabe/Ablehnung
+
+## Phase 7b Schritt 2 — Compliance-Dashboard (Streamlit)
+
+Stand: 2026-07-06
+
+Das Backend (PendingApproval + ApprovalRequestService) hat jetzt eine UI.
+
+### Zugriff
+
+- Menu-Eintrag "Freigaben" fuer ALLE User (Transparenz)
+- Entscheidungs-Buttons nur fuer Rollen "admin" und "compliance-officer"
+- Andere User sehen die Antraege, koennen aber nichts entscheiden
+
+### Features
+
+- Live-Liste offener Antraege (list_pending)
+- Karten-Layout mit Border pro Antrag
+- Metadaten: Antragsteller, Zeitpunkt (relativ), Grund
+- Tool-Parameter im Expander (aufklappbar)
+- Approve-Button mit optionaler Notiz
+- Reject-Button mit Pflicht-Notiz
+- Auto-Refresh nach Aktion (st.rerun)
+
+### Datei
+
+- streamlit_app/views/compliance_page.py
+
+### UI-Analogien
+
+- Antrags-Liste = Anschlagsbrett im Hausflur
+- Approve/Reject = Freigabe- oder Ablehnungs-Stempel
+- Nur Compliance darf stempeln, alle duerfen zuschauen

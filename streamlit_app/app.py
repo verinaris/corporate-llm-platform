@@ -31,6 +31,7 @@ from streamlit_app.views import (
     admin_page,
     businessplan_page,
     chat_page,
+    compliance_page,
     documents_page,
     login_page,
     stats_page,
@@ -236,7 +237,7 @@ with st.sidebar:
     st.markdown("---")
 
     # Navigation — Documents-Page nur für Admin/Compliance-Officer
-    nav_options = ["💬 Chat", "📊 Businessplan", "📈 Verbrauch"]
+    nav_options = ["💬 Chat", "📊 Businessplan", "📈 Verbrauch", "✅ Freigaben"]
     if user["role"] in ("admin", "compliance-officer"):
         nav_options.insert(1, "📚 Wissensbibliothek")
         nav_options.append("🛡️ Admin / Compliance")
@@ -338,5 +339,7 @@ elif page_label == "📊 Businessplan":
     businessplan_page.render()
 elif page_label == "📈 Verbrauch":
     stats_page.render()
+elif page_label == "✅ Freigaben":
+    compliance_page.render()
 elif page_label == "🛡️ Admin / Compliance":
     admin_page.render()
