@@ -20,7 +20,7 @@ email-validator==2.2.0
 
 # Auth (Phase 2a)
 bcrypt==4.2.0
-pyjwt==2.10.0
+pyjwt==2.13.0
 
 # HTTP Client
 httpx==0.27.2
