@@ -24,7 +24,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 COPY requirements.txt .
-RUN pip install --no-cache-dir --user -r requirements.txt
+RUN pip install --no-cache-dir -r requirements.txt
 
 
 # ---- Stage 2: Runtime ----
@@ -35,10 +35,10 @@ WORKDIR /app
 # Nicht-root User anlegen
 RUN groupadd -r app && useradd -r -g app -d /app -s /bin/bash app
 
-# Python-Pakete aus Builder übernehmen
-COPY --from=builder /root/.local /home/app/.local
-ENV PATH=/home/app/.local/bin:$PATH \
-    PYTHONUNBUFFERED=1 \
+# Python-Pakete global aus Builder uebernehmen (kompletter site-packages)
+COPY --from=builder /usr/local/lib/python3.12/site-packages /usr/local/lib/python3.12/site-packages
+COPY --from=builder /usr/local/bin /usr/local/bin
+ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1
 
 # App-Code
