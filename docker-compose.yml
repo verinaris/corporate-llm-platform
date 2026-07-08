@@ -1,25 +1,67 @@
-# Docker-Compose für lokales Testen
-# Erst mal nur das Backend — Streamlit kann lokal weiterlaufen oder
-# später als zweiter Service hier reinkommen.
+# Docker-Compose fuer Verinaris — Backend + Frontend + Persistenz
 #
-# Start:    docker compose up
+# Start:    docker compose up -d
+# Logs:     docker compose logs -f
 # Stop:     docker compose down
-# Rebuild:  docker compose up --build
+# Rebuild:  docker compose up --build -d
+#
+# Zugriff nach Start:
+#   Backend:  http://localhost:8000
+#   Frontend: http://localhost:8501
 
 services:
   backend:
-    build: .
-    container_name: corporate-llm-backend
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: verinaris-backend
     ports:
       - "8000:8000"
     env_file:
       - .env
+    environment:
+      # Ollama laeuft auf dem Mac-Host, nicht im Container
+      - OLLAMA_BASE_URL=http://host.docker.internal:11434
     volumes:
-      # SQLite-DB persistieren
       - ./data:/app/data
+    extra_hosts:
+      # Damit Container den Mac-Host als 'host.docker.internal' aufloesen kann
+      - "host.docker.internal:host-gateway"
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
       interval: 30s
       timeout: 5s
       retries: 3
+    networks:
+      - verinaris-net
+
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile.streamlit
+    container_name: verinaris-frontend
+    ports:
+      - "8501:8501"
+    env_file:
+      - .env
+    environment:
+      # Streamlit ruft Backend intern ueber Docker-Netzwerk auf
+      - BACKEND_URL=http://backend:8000
+    volumes:
+      - ./data:/app/data
+    depends_on:
+      backend:
+        condition: service_healthy
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8501/_stcore/health')"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+    networks:
+      - verinaris-net
+
+networks:
+  verinaris-net:
+    driver: bridge
