@@ -15,7 +15,7 @@ sqlmodel==0.0.22
 # Config / Validation
 pydantic==2.9.2
 pydantic-settings==2.6.0
-python-dotenv==1.0.1
+python-dotenv==1.2.2
 email-validator==2.2.0
 
 # Auth (Phase 2a)
