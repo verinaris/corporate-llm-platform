@@ -16,7 +16,9 @@ services:
       dockerfile: Dockerfile
     container_name: verinaris-backend
     ports:
-      - "8000:8000"
+      # Nur lokal: von aussen erreichbar ausschliesslich ueber Caddy.
+      # Ohne 127.0.0.1 umgeht Docker die ufw-Regeln und oeffnet den Port weltweit.
+      - "127.0.0.1:8000:8000"
     env_file:
       - .env
     environment:
@@ -42,7 +44,8 @@ services:
       dockerfile: Dockerfile.streamlit
     container_name: verinaris-frontend
     ports:
-      - "8501:8501"
+      # Nur lokal: Caddy erreicht das Frontend ueber das Docker-Netz.
+      - "127.0.0.1:8501:8501"
     env_file:
       - .env
     environment:
