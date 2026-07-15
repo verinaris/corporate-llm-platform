@@ -28,6 +28,13 @@ httpx==0.27.2
 # Frontend (Phase 2b)
 streamlit==1.40.0
 
+# Transitive Deps explizit pinnen (Segfault-Fix 15.07.2026):
+# streamlit 1.40 fordert nur pyarrow>=7.0.0 -- ohne Obergrenze.
+# pip zog daher pyarrow 25.0.0 -> SIGSEGV in pyarrow/pandas_compat.py
+# convert_column beim Rendern der Audit-Log-Tabelle (admin_page.py:119).
+# 18.1.0 = die zu streamlit 1.40 zeitgleiche Reihe (Nov 2024).
+pyarrow==18.1.0
+
 # RAG (Phase 3a) — Vektor-DB + PDF-Reader
 chromadb==0.5.20
 pypdf==5.1.0
