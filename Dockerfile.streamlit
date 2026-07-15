@@ -15,8 +15,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
         build-essential \
     && rm -rf /var/lib/apt/lists/*
 
-COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+COPY requirements.txt requirements.lock.txt ./
+# Lock installieren, nicht requirements.txt -- siehe Header der Lock-Datei
+RUN pip install --no-cache-dir -r requirements.lock.txt
 
 
 # ---- Stage 2: Runtime ----
