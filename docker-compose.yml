@@ -48,6 +48,8 @@ services:
     environment:
       # Streamlit ruft Backend intern ueber Docker-Netzwerk auf
       - BACKEND_URL=http://backend:8000
+      # Segfaults liefern damit einen Python-Stack statt stummem exit 139
+      - PYTHONFAULTHANDLER=1
     volumes:
       - ./data:/app/data
     depends_on:
@@ -62,6 +64,30 @@ services:
     networks:
       - verinaris-net
 
+  caddy:
+    image: caddy:2-alpine
+    container_name: verinaris-caddy
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      # WICHTIG: haelt die Let's-Encrypt-Zertifikate. Ohne dieses Volume
+      # holt Caddy nach jedem Rebuild ein neues -- Limit sind 5 pro Woche.
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      frontend:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - verinaris-net
+
 networks:
   verinaris-net:
     driver: bridge
+
+volumes:
+  caddy_data:
+  caddy_config:
