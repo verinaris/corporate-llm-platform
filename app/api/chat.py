@@ -26,6 +26,7 @@ from app.services.rag import (
     extract_last_user_query,
     inject_rag_context,
 )
+from app.tools.registry import ApprovalPendingError, ToolRegistry
 
 router = APIRouter(prefix="/chat", tags=["chat"])
 
