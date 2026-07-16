@@ -444,6 +444,31 @@ class APIClient:
     # ------------------------------------------------------------------ #
     # Helpers
     # ------------------------------------------------------------------ #
+    # ------------------------------------------------------------------ #
+    # User-Verwaltung (Phase 7c) — Backend erlaubt das nur Admins
+    # ------------------------------------------------------------------ #
+    def list_users(self) -> list[dict[str, Any]]:
+        """Alle User der Instanz."""
+        return self._get("/users")  # type: ignore[return-value]
+
+    def create_user(
+        self,
+        email: str,
+        password: str,
+        role: str = "user",
+        branch: str = "generic",
+    ) -> dict[str, Any]:
+        """Legt einen User an. 409, wenn die E-Mail schon vergeben ist."""
+        return self._post(
+            "/users",
+            {
+                "email": email,
+                "password": password,
+                "role": role,
+                "branch": branch,
+            },
+        )
+
     def _get(self, path: str, timeout: int = 10) -> dict[str, Any]:
         try:
             r = httpx.get(

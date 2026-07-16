@@ -35,6 +35,7 @@ from streamlit_app.views import (
     documents_page,
     login_page,
     stats_page,
+    users_page,
 )
 from streamlit_app.components.trial_banner import render_trial_banner
 
@@ -241,6 +242,8 @@ with st.sidebar:
     if user["role"] in ("admin", "compliance-officer"):
         nav_options.insert(1, "📚 Wissensbibliothek")
         nav_options.append("🛡️ Admin / Compliance")
+    if user["role"] == "admin":
+        nav_options.append("👥 Benutzer")
     page_label = st.radio(
         "Navigation",
         nav_options,
@@ -343,3 +346,5 @@ elif page_label == "✅ Freigaben":
     compliance_page.render()
 elif page_label == "🛡️ Admin / Compliance":
     admin_page.render()
+elif page_label == "👥 Benutzer":
+    users_page.render()
