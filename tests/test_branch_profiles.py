@@ -3,6 +3,9 @@
 import pytest
 
 from app.branches.profiles import (
+    branch_allows_cloud,
+    branch_default_model,
+    branch_is_self_assignable,
     get_businessplan_templates_for_branch,
     get_industry_for_businessplan,
     get_industry_profile,
@@ -111,3 +114,57 @@ def test_all_branch_template_refs_actually_exist():
             assert tid in existing_ids, (
                 f"Branche '{branch}' verweist auf nicht existente Template-ID '{tid}'"
             )
+
+
+# ============================================================ #
+# Policy (Datenresidenz + Selbstzuweisung)
+# ============================================================ #
+
+def test_jede_userbranch_hat_ein_profil():
+    """
+    Der wichtigste Test dieser Datei.
+
+    get_industry_profile() faellt bei unbekanntem Code STILL auf generic
+    zurueck — und generic erlaubt Cloud. Eine neue Branche im Enum ohne
+    _PROFILES-Eintrag liefe also lautlos unreguliert. Dieser Test macht
+    aus dem stillen Fallback einen roten Test.
+    """
+    from app.branches.profiles import _PROFILES
+
+    for branch in UserBranch:
+        assert branch.value in _PROFILES, (
+            f"UserBranch.{branch.name} hat keinen Eintrag in _PROFILES — "
+            f"faellt still auf generic zurueck (allow_cloud_models=True)."
+        )
+
+
+def test_pharma_ist_reguliert():
+    assert branch_allows_cloud("pharma") is False
+    assert branch_is_self_assignable("pharma") is False
+    assert branch_default_model("pharma") == "qwen2.5:7b"
+
+
+def test_generic_ist_unreguliert():
+    assert branch_allows_cloud("generic") is True
+    assert branch_is_self_assignable("generic") is True
+    assert branch_default_model("generic") is None
+
+
+def test_default_model_widerspricht_nicht_der_policy():
+    """
+    Eine Branche ohne Cloud-Erlaubnis darf kein Cloud-Modell als Default
+    tragen. Waere ein Widerspruch, den sonst erst der erste User merkt.
+    """
+    from app.llm.resolver import is_local_model
+
+    for profile in list_industry_profiles():
+        if profile.default_model and not profile.allow_cloud_models:
+            assert is_local_model(profile.default_model), (
+                f"{profile.code}: default_model='{profile.default_model}' ist "
+                f"ein Cloud-Modell, aber allow_cloud_models=False"
+            )
+
+
+def test_unbekannte_branche_faellt_auf_generic():
+    """Dokumentiert den Fallback bewusst — abgesichert durch den Test oben."""
+    assert branch_allows_cloud("automotive") is True

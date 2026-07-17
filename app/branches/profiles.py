@@ -28,6 +28,14 @@ class IndustryProfile:
     short_name: str     # Sidebar: "Pharma"
     icon: str           # Emoji für UI
     description: str    # 1-Zeilen-Beschreibung
+
+    # --- Policy -------------------------------------------------- #
+    # Bewusst OHNE Default: Wer eine Branche anlegt, MUSS diese Fragen
+    # beantworten. "Vergessen" darf nicht "unreguliert" bedeuten.
+    self_assignable: bool       # Darf ein User sich die Branche selbst geben?
+    allow_cloud_models: bool    # Duerfen Daten das eigene Netz verlassen?
+    default_model: str | None   # Vorgabe-Modell; None = settings.default_model
+
     is_default: bool = False
 
 
@@ -46,6 +54,9 @@ _PROFILES: dict[str, IndustryProfile] = {
             "Filter, Vorlagen oder Checks. Geeignet für gemischte Use-Cases."
         ),
         is_default=True,
+        self_assignable=True,
+        allow_cloud_models=True,
+        default_model=None,
     ),
     "pharma": IndustryProfile(
         code="pharma",
@@ -55,8 +66,11 @@ _PROFILES: dict[str, IndustryProfile] = {
         description=(
             "Compliance-Filter für HWG/AMG/FSA-Kodex aktiv. "
             "Industry-Checks (Pharmakovigilanz, DSGVO Art. 9) im Businessplan. "
-            "Empfehlung lokales LLM für patienten-/praxisnahe Daten."
+            "Cloud-Modelle gesperrt — Daten bleiben auf eigener Hardware."
         ),
+        self_assignable=False,
+        allow_cloud_models=False,
+        default_model="qwen2.5:7b",
     ),
     # später: legal, tax, energy, craft, medical
 }
@@ -134,10 +148,37 @@ def get_businessplan_templates_for_branch(
     return _BRANCH_TO_BP_TEMPLATES.get(branch, _BRANCH_TO_BP_TEMPLATES["generic"])
 
 
+# ============================================================ #
+# Public API — Policy
+# ============================================================ #
+
+def branch_allows_cloud(branch: "str | UserBranch | None") -> bool:
+    """
+    Duerfen fuer diese Branche Cloud-Modelle genutzt werden?
+
+    Nutzung in `app/api/chat.py` und `app/api/models.py`. Endpoints
+    fragen NIE `branch == "pharma"` — immer ueber diese Funktion.
+    """
+    return get_industry_profile(branch).allow_cloud_models
+
+
+def branch_default_model(branch: "str | UserBranch | None") -> str | None:
+    """Vorgabe-Modell der Branche. None = globaler Default aus settings."""
+    return get_industry_profile(branch).default_model
+
+
+def branch_is_self_assignable(branch: "str | UserBranch | None") -> bool:
+    """Darf ein User sich diese Branche selbst geben — ohne Admin?"""
+    return get_industry_profile(branch).self_assignable
+
+
 __all__ = [
     "IndustryProfile",
     "list_industry_profiles",
     "get_industry_profile",
     "get_industry_for_businessplan",
     "get_businessplan_templates_for_branch",
+    "branch_allows_cloud",
+    "branch_default_model",
+    "branch_is_self_assignable",
 ]

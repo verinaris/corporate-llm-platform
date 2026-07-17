@@ -7,21 +7,27 @@ Phase 3b: Optional RAG via 'collection'-Parameter
 
 import time
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlmodel import Session
 
 from app.auth.dependencies import get_current_user
 from app.branches import get_plugin
+from app.branches.profiles import get_industry_profile
 from app.config import get_settings
 from app.database import get_session
 from app.llm.anthropic_client import AnthropicClient
 from app.llm.base import BaseLLMClient
 from app.llm.ollama_client import OllamaClient
-from app.llm.resolver import Provider, UnknownModelError, resolve_provider
-from app.models import User
+from app.llm.resolver import (
+    Provider,
+    UnknownModelError,
+    is_local_model,
+    resolve_provider,
+)
+from app.models import AuditAction, User
 from app.pricing import calculate_cost
 from app.schemas import ChatMessage, ChatRequest, ChatResponse, UsageInfo
-from app.services import token_tracker
+from app.services import audit, token_tracker
 from app.services.rag import (
     build_rag_context,
     extract_last_user_query,
@@ -52,14 +58,54 @@ def _resolve_client(model: str) -> BaseLLMClient:
 @router.post("", response_model=ChatResponse)
 async def chat(
     request: ChatRequest,
+    http_request: Request,
     session: Session = Depends(get_session),
     current_user: User = Depends(get_current_user),
 ) -> ChatResponse:
     """Sendet eine Chat-Anfrage an das LLM und loggt den Verbrauch."""
     settings = get_settings()
-    model = request.model or settings.default_model
+    profile = get_industry_profile(current_user.branch)
+    user_role = current_user.role.value if current_user.role else "user"
+
+    # Branchen-Default vor globalem Default: sonst laeuft ein Pharma-User
+    # ohne eigene Modellwahl in die eigene Sperre.
+    model = request.model or profile.default_model or settings.default_model
     max_tokens = request.max_tokens or settings.default_max_tokens
-    client = _resolve_client(model)
+    client = _resolve_client(model)  # 400 bei unbekanntem Modell
+
+    # --- Datenresidenz-Policy (harte Kontrolle) ------------------------ #
+    # Ein gefiltertes Dropdown ist Kosmetik -- per curl geht es daran
+    # vorbei. Die Entscheidung faellt hier oder nirgends.
+    if not profile.allow_cloud_models and not is_local_model(model):
+        audit.log(
+            user_email=current_user.email,
+            action=AuditAction.MODEL_DENIED,
+            user_role=user_role,
+            target_type="model",
+            target_id=model,
+            details={
+                "branch": profile.code,
+                "reason": "cloud_model_blocked",
+                "suggested_model": profile.default_model,
+            },
+            ip_address=http_request.client.host if http_request.client else None,
+            user_agent=http_request.headers.get("user-agent"),
+            success=False,
+            session=session,
+        )
+        hinweis = (
+            f" Bitte ein lokales Modell waehlen, z.B. '{profile.default_model}'."
+            if profile.default_model
+            else " Bitte ein lokales Modell waehlen."
+        )
+        raise HTTPException(
+            status_code=403,
+            detail=(
+                f"Die Branche '{profile.short_name}' erlaubt keine Cloud-Modelle. "
+                f"Das Modell '{model}' wuerde Daten an einen externen Anbieter "
+                f"senden.{hinweis}"
+            ),
+        )
 
     # --- Branchen-Plugin laden ---
     plugin = get_plugin(current_user.branch.value)
@@ -100,7 +146,6 @@ async def chat(
     user_identifier = current_user.email
 
     # --- Tool-Use: Tools fuer User-Rolle aus Registry laden ---
-    user_role = current_user.role.value if current_user.role else "user"
     available_tools = ToolRegistry.get_for_role(user_role)
     tools_for_llm = (
         [t.to_anthropic_format() for t in available_tools]

@@ -179,6 +179,7 @@ class AuditAction(str, Enum):
 
     # Chat / LLM
     CHAT_QUERY = "chat_query"
+    MODEL_DENIED = "model_denied"   # Branchen-Policy hat das Modell gesperrt
 
     # Businessplan
     PLAN_CREATED = "plan_created"
