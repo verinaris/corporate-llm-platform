@@ -17,6 +17,7 @@ from app.database import get_session
 from app.llm.anthropic_client import AnthropicClient
 from app.llm.base import BaseLLMClient
 from app.llm.ollama_client import OllamaClient
+from app.llm.resolver import Provider, UnknownModelError, resolve_provider
 from app.models import User
 from app.pricing import calculate_cost
 from app.schemas import ChatMessage, ChatRequest, ChatResponse, UsageInfo
@@ -32,25 +33,20 @@ router = APIRouter(prefix="/chat", tags=["chat"])
 
 
 def _resolve_client(model: str) -> BaseLLMClient:
-    """Wählt den richtigen Provider anhand des Modell-Namens."""
-    if model.startswith("claude-"):
+    """
+    Liefert den Client zum Modell.
+
+    Die Zuordnung Modell → Provider steht in app/llm/resolver.py — hier
+    wird sie nur noch in einen HTTP-Status übersetzt.
+    """
+    try:
+        provider = resolve_provider(model)
+    except UnknownModelError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    if provider is Provider.ANTHROPIC:
         return AnthropicClient()
-    # Ollama-Modelle haben typischerweise das Format `name:tag` (z.B. qwen2.5:7b)
-    # ODER sind klar lokale Modelle (llama*, qwen*, mistral*, phi*, gemma*)
-    if ":" in model or model.lower().startswith((
-        "llama", "qwen", "mistral", "phi", "gemma", "codellama",
-        "deepseek", "wizardlm", "vicuna",
-    )):
-        return OllamaClient()
-    raise HTTPException(
-        status_code=400,
-        detail=(
-            f"Unbekanntes Modell: '{model}'. "
-            f"Cloud-Modelle: 'claude-*'. "
-            f"Lokale Modelle: 'qwen2.5:7b', 'llama3.1:8b' usw. "
-            f"(über Ollama)."
-        ),
-    )
+    return OllamaClient()
 
 
 @router.post("", response_model=ChatResponse)
