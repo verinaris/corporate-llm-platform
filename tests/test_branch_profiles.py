@@ -203,3 +203,26 @@ def test_admin_kann_user_in_pharma_setzen(client, admin_token, regular_user):
     )
     assert r.status_code == 200
     assert r.json()["branch"] == "pharma"
+
+
+def test_admin_darf_eigene_branche_frei_wechseln(client, admin_token):
+    """
+    Ein Admin ist die Ausnahme vom self_assignable-Guard: er darf sich auch
+    selbst in eine regulierte Branche setzen (und wieder heraus), weil er das
+    ohnehin ueber PATCH /users/{id} koennte.
+    """
+    r = client.put(
+        "/profile/me/branch",
+        json={"branch": "pharma"},
+        headers={"Authorization": f"Bearer {admin_token}"},
+    )
+    assert r.status_code == 200
+    assert r.json()["branch"] == "pharma"
+
+    r = client.put(
+        "/profile/me/branch",
+        json={"branch": "generic"},
+        headers={"Authorization": f"Bearer {admin_token}"},
+    )
+    assert r.status_code == 200
+    assert r.json()["branch"] == "generic"

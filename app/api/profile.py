@@ -34,6 +34,7 @@ class IndustryProfileOut(BaseModel):
     icon: str
     description: str
     is_default: bool
+    self_assignable: bool
 
 
 class MyProfileOut(BaseModel):
@@ -70,6 +71,7 @@ def list_industries() -> list[IndustryProfileOut]:
             icon=p.icon,
             description=p.description,
             is_default=p.is_default,
+            self_assignable=p.self_assignable,
         )
         for p in list_industry_profiles()
     ]
@@ -92,6 +94,7 @@ def get_my_profile(
             icon=profile.icon,
             description=profile.description,
             is_default=profile.is_default,
+            self_assignable=profile.self_assignable,
         ),
     )
 
@@ -122,7 +125,14 @@ def update_my_branch(
     # (PATCH /users/{id}) -- sonst waere die Datenresidenz-Policy per
     # Branchenwechsel abwaehlbar.
     current = user.branch.value if hasattr(user.branch, "value") else str(user.branch)
-    if not (branch_is_self_assignable(current) and branch_is_self_assignable(new_branch.value)):
+    role = user.role.value if hasattr(user.role, "value") else str(user.role)
+    is_admin = role == "admin"
+
+    # Ein Admin darf immer -- er kann sich ohnehin ueber PATCH /users/{id}
+    # selbst umtragen. Fuer alle anderen: nur zwischen frei waehlbaren Branchen.
+    if not is_admin and not (
+        branch_is_self_assignable(current) and branch_is_self_assignable(new_branch.value)
+    ):
         raise HTTPException(
             status.HTTP_403_FORBIDDEN,
             detail=(

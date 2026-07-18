@@ -151,31 +151,54 @@ def _render_branch_selector(user: dict) -> None:
     current_idx = codes.index(current_branch) if current_branch in codes else 0
 
     st.markdown("**🏢 Mein Branchen-Profil**")
-    chosen_label = st.selectbox(
-        "Branche",
-        labels,
-        index=current_idx,
-        label_visibility="collapsed",
-        help=(
-            "Steuert das Pharma-Plugin im Chat, die Vorlagen im Businessplan-"
-            "Generator und (später) verfügbare Agenten."
-        ),
-    )
-    chosen_code = codes[labels.index(chosen_label)]
 
-    # Wenn geändert: an Backend senden + lokalen User-State aktualisieren
-    if chosen_code != current_branch:
-        try:
-            client = APIClient(token=st.session_state["token"])
-            updated = client.update_my_branch(chosen_code)
-            # User-State im Frontend mitziehen
-            st.session_state["user"]["branch"] = updated["branch"]
-            # Caches platt machen, die branchen-abhängig sind
-            st.session_state.pop("_bp_templates_cache", None)
-            st.success(f"Branche gewechselt zu: {updated['branch_profile']['name']}")
-            st.rerun()
-        except APIError as exc:
-            st.error(f"Branche konnte nicht gewechselt werden: {exc.detail}")
+    # Ist die AKTUELLE Branche selbst waehlbar? Wenn nicht (z.B. Pharma), darf
+    # der User sie nicht selbst wechseln -- das Backend lehnt es ohnehin ab.
+    # Statt eines Dropdowns, das bei jedem Klick "nein" sagt, ein klarer Hinweis.
+    current_profile = next(
+        (i for i in industries if i["code"] == current_branch), None
+    )
+    current_self_assignable = (
+        current_profile.get("self_assignable", True) if current_profile else True
+    )
+
+    is_admin = user.get("role") == "admin"
+    if not current_self_assignable and not is_admin:
+        label = current_profile["name"] if current_profile else current_branch
+        icon = current_profile["icon"] if current_profile else "🏢"
+        st.info(
+            f"{icon} **{label}**\n\n"
+            "Diese Branche ist reguliert und kann nur von einem Admin "
+            "geändert werden."
+        )
+    else:
+        chosen_label = st.selectbox(
+            "Branche",
+            labels,
+            index=current_idx,
+            label_visibility="collapsed",
+            help=(
+                "Steuert das Pharma-Plugin im Chat, die Vorlagen im Businessplan-"
+                "Generator und (später) verfügbare Agenten."
+            ),
+        )
+        chosen_code = codes[labels.index(chosen_label)]
+
+        # Wenn geändert: an Backend senden + lokalen User-State aktualisieren
+        if chosen_code != current_branch:
+            try:
+                client = APIClient(token=st.session_state["token"])
+                updated = client.update_my_branch(chosen_code)
+                # User-State im Frontend mitziehen
+                st.session_state["user"]["branch"] = updated["branch"]
+                # Caches platt machen, die branchen-abhängig sind
+                st.session_state.pop("_bp_templates_cache", None)
+                st.success(
+                    f"Branche gewechselt zu: {updated['branch_profile']['name']}"
+                )
+                st.rerun()
+            except APIError as exc:
+                st.error(f"Branche konnte nicht gewechselt werden: {exc.detail}")
 
     # Aktive Branche → Compliance-Hinweis
     if current_branch == "pharma":
