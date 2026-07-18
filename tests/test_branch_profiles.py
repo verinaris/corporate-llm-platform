@@ -168,3 +168,38 @@ def test_default_model_widerspricht_nicht_der_policy():
 def test_unbekannte_branche_faellt_auf_generic():
     """Dokumentiert den Fallback bewusst — abgesichert durch den Test oben."""
     assert branch_allows_cloud("automotive") is True
+
+
+# ============================================================ #
+# Guard: PUT /profile/me/branch — Selbstbedienung nur unreguliert
+# ============================================================ #
+
+def test_user_darf_nicht_in_regulierte_branche_wechseln(client, user_token):
+    """Ein normaler User darf sich nicht selbst zu Pharma machen."""
+    r = client.put(
+        "/profile/me/branch",
+        json={"branch": "pharma"},
+        headers={"Authorization": f"Bearer {user_token}"},
+    )
+    assert r.status_code == 403
+
+
+def test_user_darf_zwischen_freien_branchen_wechseln(client, user_token):
+    """generic → generic bleibt erlaubt (self_assignable=True)."""
+    r = client.put(
+        "/profile/me/branch",
+        json={"branch": "generic"},
+        headers={"Authorization": f"Bearer {user_token}"},
+    )
+    assert r.status_code == 200
+
+
+def test_admin_kann_user_in_pharma_setzen(client, admin_token, regular_user):
+    """Der Admin-Weg (PATCH /users) muss offen bleiben — sonst Sackgasse."""
+    r = client.patch(
+        f"/users/{regular_user.id}",
+        json={"branch": "pharma"},
+        headers={"Authorization": f"Bearer {admin_token}"},
+    )
+    assert r.status_code == 200
+    assert r.json()["branch"] == "pharma"

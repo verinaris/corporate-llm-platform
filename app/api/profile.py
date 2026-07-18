@@ -13,6 +13,7 @@ from sqlmodel import Session
 
 from app.auth.dependencies import get_current_user
 from app.branches.profiles import (
+    branch_is_self_assignable,
     IndustryProfile,
     get_industry_profile,
     list_industry_profiles,
@@ -114,6 +115,21 @@ def update_my_branch(
         raise HTTPException(
             status.HTTP_400_BAD_REQUEST,
             detail=f"Unbekannte Branche '{payload.branch}'. Erlaubt: {valid}",
+        )
+
+    # Selbstbedienung nur zwischen frei waehlbaren Branchen. Rein in eine
+    # regulierte Branche oder raus aus ihr geht nur ueber einen Admin
+    # (PATCH /users/{id}) -- sonst waere die Datenresidenz-Policy per
+    # Branchenwechsel abwaehlbar.
+    current = user.branch.value if hasattr(user.branch, "value") else str(user.branch)
+    if not (branch_is_self_assignable(current) and branch_is_self_assignable(new_branch.value)):
+        raise HTTPException(
+            status.HTTP_403_FORBIDDEN,
+            detail=(
+                "Diese Branche kann nur ein Admin setzen. "
+                "Regulierte Branchen (z.B. Pharma) sind bewusst nicht "
+                "selbst waehlbar -- bitte an die Administration wenden."
+            ),
         )
 
     old_branch = user.branch.value if hasattr(user.branch, "value") else str(user.branch)
