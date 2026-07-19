@@ -22,7 +22,7 @@ from pydantic import BaseModel
 from sqlmodel import Session, col, delete, select
 
 from app.auth.dependencies import get_current_user
-from app.auth.permissions import can_approve
+from app.auth.permissions import can_read_audit
 from app.database import get_session
 from app.models import (
     AuditAction,
@@ -44,7 +44,7 @@ router = APIRouter(prefix="/admin", tags=["admin"])
 
 def _require_admin_or_compliance(user: User) -> None:
     """Wirft 403, wenn nicht Admin oder Compliance-Officer."""
-    if not can_approve(user.role):
+    if not can_read_audit(user.role):
         raise HTTPException(
             status.HTTP_403_FORBIDDEN,
             detail="Nur Admin oder Compliance-Officer haben Zugriff.",

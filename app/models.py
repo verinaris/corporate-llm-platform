@@ -21,6 +21,7 @@ class UserRole(str, Enum):
     ADMIN = "admin"
     COMPLIANCE_OFFICER = "compliance-officer"
     PHARMA_REFERENT = "pharma-referent"
+    QUALIFIED_REVIEWER = "qualified-reviewer"  # fachlicher Freigeber (Automationen)
     USER = "user"
 
 
