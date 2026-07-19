@@ -21,6 +21,7 @@ ROLLEN: dict[str, str] = {
     "user": "User — Standardzugang",
     "pharma-referent": "Pharma-Referent",
     "compliance-officer": "Compliance-Officer — sieht das Audit-Log",
+    "qualified-reviewer": "Fachlicher Freigeber — gibt Automationen frei",
     "admin": "Admin — darf User verwalten",
 }
 
