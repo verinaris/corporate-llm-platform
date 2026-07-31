@@ -87,7 +87,10 @@ def _is_logged_in() -> bool:
     if "token" not in st.session_state:
         return False
     try:
-        APIClient(token=st.session_state["token"]).me()
+        # /auth/me ist die Wahrheit ueber den User (inkl. branch) -- Ergebnis in
+        # session_state uebernehmen, nicht verwerfen. Sonst fehlt der Navigation
+        # die Branche und branchenabhaengige Reiter (z.B. Businessplan) greifen nicht.
+        st.session_state["user"] = APIClient(token=st.session_state["token"]).me()
         return True
     except APIError:
         for key in ("token", "user", "messages"):
