@@ -24,6 +24,9 @@ services:
     environment:
       # Ollama laeuft auf dem Mac-Host, nicht im Container
       - OLLAMA_BASE_URL=http://host.docker.internal:11434
+      # Chroma cacht sein Embedding-Modell unter $HOME/.cache -- /app ist
+      # fuer den non-root User nicht beschreibbar, ./data schon.
+      - HOME=/app/data
     volumes:
       - ./data:/app/data
     extra_hosts:
