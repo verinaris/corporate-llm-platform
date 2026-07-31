@@ -19,6 +19,7 @@ from app.models import User, UserRole
 # tokenUrl zeigt auf den Login-Endpoint (wird in Swagger-UI verlinkt)
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="auth/login")
 
+from app.auth.permissions import can_approve
 
 def get_current_user(
     token: str = Depends(oauth2_scheme),
@@ -63,5 +64,25 @@ def require_admin_or_compliance(
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Admin- oder Compliance-Officer-Rechte erforderlich",
+        )
+    return user
+
+
+def require_document_contributor(
+    user: User = Depends(get_current_user),
+) -> User:
+    """
+    Wer Dokumente beitragen darf: Admin, Compliance-Officer UND der fachliche
+    Freigeber (qualified-reviewer). Nutzt can_approve als eine Wahrheit --
+    wer freigeben darf, darf auch Fachdokumente hochladen und Sammlungen anlegen.
+
+    LOESCHEN ist bewusst NICHT hier: das bleibt an require_admin_or_compliance.
+    Der qualified-reviewer fuellt und nutzt die Wissensbasis, verwaltet sie
+    aber nicht (kein Entfernen von Wissen, auf dem spaeter Freigaben basieren).
+    """
+    if not can_approve(user.role):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Keine Berechtigung, Dokumente beizutragen",
         )
     return user

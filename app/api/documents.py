@@ -31,6 +31,7 @@ from sqlmodel import Session, select
 from app.auth.dependencies import (
     get_current_user,
     require_admin_or_compliance,
+    require_document_contributor,
 )
 from app.database import get_session
 from app.models import Document, DocumentCollection, User
@@ -144,7 +145,7 @@ def _duplicate_detail_message(existing: Document, collection: str) -> str:
     "",
     response_model=DocumentOut,
     status_code=status.HTTP_201_CREATED,
-    dependencies=[Depends(require_admin_or_compliance)],
+    dependencies=[Depends(require_document_contributor)],
 )
 async def upload_document(
     file: UploadFile = File(...),
@@ -255,7 +256,7 @@ async def upload_document(
 
 @router.post(
     "/stream",
-    dependencies=[Depends(require_admin_or_compliance)],
+    dependencies=[Depends(require_document_contributor)],
 )
 async def upload_document_stream(
     file: UploadFile = File(...),
@@ -535,7 +536,7 @@ def get_collection(
     "/collections",
     response_model=CollectionInfo,
     status_code=status.HTTP_201_CREATED,
-    dependencies=[Depends(require_admin_or_compliance)],
+    dependencies=[Depends(require_document_contributor)],
 )
 def create_collection(
     name: str = Form(...),

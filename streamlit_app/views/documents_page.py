@@ -62,7 +62,8 @@ def render() -> None:
 
     user = st.session_state.get("user", {})
     role = user.get("role", "")
-    is_privileged = role in ("admin", "compliance-officer")
+    # beitragen (hochladen, Sammlung anlegen): auch der fachliche Freigeber
+    is_privileged = role in ("admin", "compliance-officer", "qualified-reviewer")
 
     if not is_privileged:
         st.warning(
@@ -330,7 +331,7 @@ def _render_collections(client: APIClient, role: str) -> None:
         st.info("Noch keine Sammlungen vorhanden. Lade zuerst ein PDF hoch.")
         return
 
-    is_privileged = role in ("admin", "compliance-officer")
+    is_privileged = role in ("admin", "compliance-officer", "qualified-reviewer")
 
     for coll in collections:
         with st.container(border=True):
@@ -403,6 +404,8 @@ def _render_documents_in_collection(
         st.caption("Keine Dokumente in dieser Sammlung.")
         return
 
+    # Loeschen bleibt Admin/Compliance vorbehalten -- der Freigeber fuellt
+    # und nutzt die Wissensbasis, entfernt aber kein Wissen.
     can_delete = role in ("admin", "compliance-officer")
 
     for doc in docs:

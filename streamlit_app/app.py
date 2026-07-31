@@ -260,12 +260,32 @@ with st.sidebar:
 
     st.markdown("---")
 
-    # Navigation — Documents-Page nur für Admin/Compliance-Officer
-    nav_options = ["💬 Chat", "📊 Businessplan", "📈 Verbrauch", "✅ Freigaben"]
-    if user["role"] in ("admin", "compliance-officer"):
+    # Navigation. Zwei getrennte Rechte, gespiegelt aus app/auth/permissions.py:
+    #   - darf_audit: das DSGVO-Audit-Log sehen (admin, compliance-officer)
+    #   - darf_freigeben: Freigaben + Wissensbibliothek (zusaetzlich qualified-reviewer)
+    # Der qualified-reviewer soll hochladen und freigeben koennen, aber NICHT
+    # ins Audit-Log schauen -- deshalb duerfen die beiden nicht an derselben
+    # Bedingung haengen.
+    rolle = user["role"]
+    darf_audit = rolle in ("admin", "compliance-officer")
+    darf_freigeben = rolle in ("admin", "compliance-officer", "qualified-reviewer")
+    branche = user.get("branch", "generic")
+
+    nav_options = ["💬 Chat", "📈 Verbrauch", "✅ Freigaben"]
+
+    # Businessplan ist ein branchenspezifisches Tool -- fuer Pharma nicht sinnvoll.
+    if branche != "pharma":
+        nav_options.insert(1, "📊 Businessplan")
+
+    # Wissensbibliothek: wer freigeben darf, darf auch Dokumente pflegen.
+    if darf_freigeben:
         nav_options.insert(1, "📚 Wissensbibliothek")
+
+    # Audit-Log strikt nur fuer Audit-Berechtigte -- NICHT qualified-reviewer.
+    if darf_audit:
         nav_options.append("🛡️ Admin / Compliance")
-    if user["role"] == "admin":
+
+    if rolle == "admin":
         nav_options.append("👥 Benutzer")
     page_label = st.radio(
         "Navigation",
