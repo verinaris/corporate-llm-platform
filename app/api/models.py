@@ -14,6 +14,7 @@ from fastapi import APIRouter, Depends
 from pydantic import BaseModel, Field
 
 from app.auth.dependencies import get_current_user
+from app.branches.profiles import branch_allows_cloud
 from app.config import get_settings
 from app.llm.ollama_client import list_installed_models
 from app.models import User
@@ -103,18 +104,21 @@ async def get_available_models(
 
     providers: list[ProviderInfo] = []
 
-    # Anthropic
-    providers.append(
-        ProviderInfo(
-            name="anthropic",
-            available=bool(settings.anthropic_api_key),
-            models=_ANTHROPIC_MODELS,
-            note=(
-                None if settings.anthropic_api_key
-                else "ANTHROPIC_API_KEY fehlt in .env"
-            ),
+    # Anthropic -- nur anbieten, wenn die Branche des Users Cloud-Modelle
+    # erlaubt. Gleiche Wahrheit wie die 403-Kontrolle in chat.py: ein
+    # Pharma-User soll Cloud-Modelle gar nicht erst im Dropdown sehen.
+    if branch_allows_cloud(user.branch):
+        providers.append(
+            ProviderInfo(
+                name="anthropic",
+                available=bool(settings.anthropic_api_key),
+                models=_ANTHROPIC_MODELS,
+                note=(
+                    None if settings.anthropic_api_key
+                    else "ANTHROPIC_API_KEY fehlt in .env"
+                ),
+            )
         )
-    )
 
     # Ollama — dynamisch
     ollama_models = await list_installed_models()
@@ -141,7 +145,12 @@ async def get_available_models(
         )
     providers.append(ollama_provider)
 
+    # Default branchengerecht: fuer eine Branche ohne Cloud darf der Default
+    # kein Cloud-Modell sein, sonst steht im Dropdown ein gesperrtes Modell vorn.
+    from app.branches.profiles import branch_default_model
+    branchen_default = branch_default_model(user.branch) or settings.default_model
+
     return AvailableModelsResponse(
         providers=providers,
-        default_model=settings.default_model,
+        default_model=branchen_default,
     )
