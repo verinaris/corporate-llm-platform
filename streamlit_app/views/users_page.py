@@ -58,13 +58,13 @@ def render() -> None:
     tab_liste, tab_neu = st.tabs(["📋 Übersicht", "➕ Neu anlegen"])
 
     with tab_liste:
-        _render_liste(client)
+        _render_liste(client, user)
 
     with tab_neu:
         _render_neu(client)
 
 
-def _render_liste(client: APIClient) -> None:
+def _render_liste(client: APIClient, user: dict) -> None:
     try:
         users = client.list_users()
     except APIError as e:
@@ -89,6 +89,45 @@ def _render_liste(client: APIClient) -> None:
 
     if st.button("🔄 Aktualisieren"):
         st.rerun()
+
+    # --- User aktivieren / deaktivieren ------------------------------- #
+    st.markdown("---")
+    st.markdown("**User aktivieren / deaktivieren**")
+
+    eigene_email = user.get("email", "")
+    # Sich selbst kann man nicht deaktivieren -- sonst sperrt man sich aus.
+    andere = [u for u in users if u.get("email") != eigene_email]
+
+    if not andere:
+        st.caption("Keine anderen User vorhanden.")
+        return
+
+    def _label(u: dict) -> str:
+        aktiv = u.get("is_active", u.get("active", True))
+        status = "aktiv ✅" if aktiv else "inaktiv ❌"
+        return f"{u.get('email')} — {u.get('role')} — {status}"
+
+    labels = [_label(u) for u in andere]
+    gewaehlt_label = st.selectbox("User waehlen", labels, key="_toggle_user")
+    gewaehlt = andere[labels.index(gewaehlt_label)]
+
+    ist_aktiv = gewaehlt.get("is_active", gewaehlt.get("active", True))
+    ziel = not ist_aktiv
+    aktion = "deaktivieren" if ist_aktiv else "aktivieren"
+
+    bestaetigt = st.checkbox(
+        f"Ja, ich moechte '{gewaehlt.get('email')}' {aktion}.",
+        key="_toggle_confirm",
+    )
+
+    if st.button(f"{'❌ Deaktivieren' if ist_aktiv else '✅ Aktivieren'}",
+                 disabled=not bestaetigt, use_container_width=True):
+        try:
+            client.set_user_active(gewaehlt["id"], ziel)
+            st.success(f"'{gewaehlt.get('email')}' wurde {aktion[:-2]}iert.")
+            st.rerun()
+        except APIError as exc:
+            st.error(f"Konnte Status nicht aendern: {exc.detail}")
 
 
 def _render_neu(client: APIClient) -> None:

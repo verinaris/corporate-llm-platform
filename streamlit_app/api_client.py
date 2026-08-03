@@ -451,6 +451,24 @@ class APIClient:
         """Alle User der Instanz."""
         return self._get("/users")  # type: ignore[return-value]
 
+    def set_user_active(self, user_id: int, is_active: bool) -> dict[str, Any]:
+        """
+        Aktiviert oder deaktiviert einen User (PATCH /users/{id}).
+        Weicher Vorgang -- kein Loeschen, die Historie im Audit-Log bleibt.
+        """
+        try:
+            r = httpx.patch(
+                f"{self.base_url}/users/{user_id}",
+                headers=self._headers(),
+                json={"is_active": is_active},
+                timeout=10,
+            )
+        except httpx.RequestError as e:
+            raise APIError(0, f"Backend nicht erreichbar: {e}") from e
+        if r.status_code >= 400:
+            raise APIError(r.status_code, _extract_detail(r))
+        return r.json()
+
     def create_user(
         self,
         email: str,
