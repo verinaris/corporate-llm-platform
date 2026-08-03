@@ -79,6 +79,7 @@ def _handle_user_message(prompt: str) -> None:
                     messages=api_messages,
                     model=model_id,
                     collection=active_collection if use_rag else None,
+                    top_k=st.session_state.get("rag_top_k", 6),
                 )
             except APIError as exc:
                 st.error(f"Fehler: {exc.detail}")

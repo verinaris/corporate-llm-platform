@@ -315,6 +315,21 @@ with st.sidebar:
     )
     st.session_state["active_collection"] = selected_collection
 
+    # Nur wenn eine echte Sammlung gewaehlt ist, ist die Anzahl der Textstellen
+    # (top_k) relevant -- ohne RAG sucht das Modell nicht in Dokumenten.
+    if selected_collection and selected_collection != "— keine —":
+        st.session_state["rag_top_k"] = st.slider(
+            "Textstellen durchsuchen",
+            min_value=4,
+            max_value=10,
+            value=st.session_state.get("rag_top_k", 6),
+            help=(
+                "Wie viele Textstellen aus der Wissensbibliothek fuer die Antwort "
+                "herangezogen werden. Mehr = gruendlicher, aber langsamer. Bei sehr "
+                "vielen kann die Antwort auch abgeschnitten werden."
+            ),
+        )
+
     if st.button("🔄 Sammlungen aktualisieren", use_container_width=True):
         st.session_state.pop("_collections_cache", None)
         st.rerun()
