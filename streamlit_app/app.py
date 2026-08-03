@@ -38,6 +38,7 @@ from streamlit_app.views import (
     users_page,
 )
 from streamlit_app.components.trial_banner import render_trial_banner
+from streamlit_app.components.ai_disclosure_banner import render_ai_disclosure_banner
 
 
 # ----------------------------------------------------------------------- #
@@ -77,6 +78,7 @@ st.markdown(
 # Trial-Banner (erscheint auf JEDER Seite, vor Auth-Check)
 # ----------------------------------------------------------------------- #
 render_trial_banner()
+render_ai_disclosure_banner()
 
 
 # ----------------------------------------------------------------------- #

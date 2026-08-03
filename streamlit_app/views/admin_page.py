@@ -12,7 +12,25 @@ import json
 import streamlit as st
 
 from streamlit_app.api_client import APIClient, APIError
+from datetime import datetime
+from zoneinfo import ZoneInfo
 
+
+
+
+def _als_berlin(ts: str) -> str:
+    """
+    Wandelt einen ISO-Zeitstempel (in UTC gespeichert) in lesbare
+    Europe/Berlin-Zeit um. Beruecksichtigt Sommer-/Winterzeit automatisch.
+    Bei unparsbarem Wert: roher String, gekuerzt (kein Crash).
+    """
+    try:
+        dt = datetime.fromisoformat(ts)
+        if dt.tzinfo is None:
+            dt = dt.replace(tzinfo=ZoneInfo("UTC"))
+        return dt.astimezone(ZoneInfo("Europe/Berlin")).strftime("%Y-%m-%d %H:%M:%S")
+    except (ValueError, TypeError):
+        return str(ts)[:19].replace("T", " ")
 
 def render() -> None:
     st.title("🛡️ Admin / Compliance")
@@ -107,7 +125,7 @@ def _render_audit_log(client: APIClient) -> None:
                 details_short = str(e["details"])[:80]
 
         rows.append({
-            "Zeitpunkt": e["timestamp"][:19].replace("T", " "),
+            "Zeitpunkt": _als_berlin(e["timestamp"]),
             "User": e["user_email"],
             "Rolle": e["user_role"],
             "Aktion": f"{icon} {e['action']}",

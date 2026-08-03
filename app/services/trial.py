@@ -122,7 +122,7 @@ def get_status(session: Session) -> dict:
             "expires_at": expires_at.isoformat(),
             "message": (
                 "Die 7-tägige Testphase ist beendet. "
-                "Für die weitere Nutzung kontaktieren Sie sascha@verinaris.de"
+                "Für die weitere Nutzung kontaktieren Sie info@verinaris.de"
             ),
         }
 
@@ -136,7 +136,7 @@ def get_status(session: Session) -> dict:
             "expires_at": expires_at.isoformat(),
             "message": (
                 f"⚠️ Letzter Tag der Testphase ({hours}h verbleibend). "
-                "Kontakt für Lizenz: sascha@verinaris.de"
+                "Kontakt für Lizenz: info@verinaris.de"
             ),
         }
 
