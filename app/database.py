@@ -70,6 +70,21 @@ def _run_lightweight_migrations() -> None:
             conn.commit()
             print("[Migration] documents.content_hash hinzugefügt")
 
+    # --- User-Spalten fuer die Testphase pro User (Befund 3) ---
+    # trial_started_at: wann die Testphase begann (beim ersten Login gesetzt)
+    # ai_disclosure_ack_at: wann der KI-Hinweis bestaetigt wurde (Variante A)
+    with engine.connect() as conn:
+        result = conn.exec_driver_sql("PRAGMA table_info(users)")
+        user_cols = {row[1] for row in result}
+
+        for spalte in ("trial_started_at", "ai_disclosure_ack_at"):
+            if spalte not in user_cols:
+                conn.exec_driver_sql(
+                    f"ALTER TABLE users ADD COLUMN {spalte} DATETIME"
+                )
+                conn.commit()
+                print(f"[Migration] users.{spalte} hinzugefügt")
+
     # Backfill: bestehende Dokumente bekommen ihren Hash nachträglich
     _backfill_content_hashes()
 

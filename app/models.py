@@ -65,6 +65,15 @@ class User(SQLModel, table=True):
         default_factory=lambda: datetime.now(timezone.utc)
     )
 
+    # Testphase pro User (Variante B): wird beim ERSTEN Login gesetzt.
+    # None = hat sich noch nie eingeloggt, Testphase noch nicht gestartet.
+    trial_started_at: Optional[datetime] = Field(default=None)
+
+    # KI-Transparenzhinweis (EU AI Act Art. 50), Variante A: wann der User
+    # den Hinweis bestaetigt hat. None = noch nicht bestaetigt. Feld jetzt
+    # angelegt, Bestaetigungs-Logik kommt spaeter (erspart 2. Migration).
+    ai_disclosure_ack_at: Optional[datetime] = Field(default=None)
+
 
 class TokenUsage(SQLModel, table=True):
     """Loggt jeden LLM-Request mit Token-Verbrauch und Kosten."""
