@@ -1,3 +1,5 @@
+from typing import Optional
+from datetime import datetime
 """
 Pydantic-Schemas für Auth-API.
 
@@ -17,6 +19,7 @@ class UserOut(BaseModel):
     role: UserRole
     branch: UserBranch
     is_active: bool
+    ai_disclosure_ack_at: Optional[datetime] = None
 
     @classmethod
     def from_user(cls, user: User) -> "UserOut":
@@ -26,6 +29,7 @@ class UserOut(BaseModel):
             role=user.role,
             branch=user.branch,
             is_active=user.is_active,
+            ai_disclosure_ack_at=user.ai_disclosure_ack_at,
         )
 
 

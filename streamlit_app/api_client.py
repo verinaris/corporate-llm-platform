@@ -55,6 +55,20 @@ class APIClient:
             raise APIError(r.status_code, detail)
         return r.json()
 
+    def acknowledge_disclosure(self) -> dict[str, Any]:
+        """Bestaetigt den KI-Transparenzhinweis (POST /auth/ack-disclosure)."""
+        try:
+            r = httpx.post(
+                f"{self.base_url}/auth/ack-disclosure",
+                headers=self._headers(),
+                timeout=10,
+            )
+        except httpx.RequestError as e:
+            raise APIError(0, f"Backend nicht erreichbar: {e}") from e
+        if r.status_code >= 400:
+            raise APIError(r.status_code, _extract_detail(r))
+        return r.json()
+
     def me(self) -> dict[str, Any]:
         return self._get("/auth/me")
 

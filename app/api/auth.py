@@ -91,3 +91,34 @@ def login(
 def me(current: User = Depends(get_current_user)) -> UserOut:
     """Gibt Infos zum gerade eingeloggten User zurück."""
     return UserOut.from_user(current)
+
+
+@router.post("/ack-disclosure", response_model=UserOut)
+def acknowledge_disclosure(
+    request: Request,
+    user: User = Depends(get_current_user),
+    session: Session = Depends(get_session),
+) -> UserOut:
+    """
+    Dokumentiert die Bestaetigung des KI-Transparenzhinweises (EU AI Act
+    Art. 50). Setzt ai_disclosure_ack_at einmalig und schreibt einen
+    Audit-Eintrag. Idempotent: erneute Aufrufe aendern den Zeitstempel nicht.
+    """
+    from datetime import datetime, timezone
+
+    if user.ai_disclosure_ack_at is None:
+        user.ai_disclosure_ack_at = datetime.now(timezone.utc)
+        session.add(user)
+        session.commit()
+        session.refresh(user)
+
+        ip = request.client.host if request.client else None
+        ua = request.headers.get("user-agent")
+        audit.log(
+            user_email=user.email,
+            user_role=user.role.value if hasattr(user.role, "value") else str(user.role),
+            action=AuditAction.AI_DISCLOSURE_ACK,
+            ip_address=ip, user_agent=ua,
+        )
+
+    return UserOut.from_user(user)

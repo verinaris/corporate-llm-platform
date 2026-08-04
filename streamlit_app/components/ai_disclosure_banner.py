@@ -19,6 +19,14 @@ _AI_DISCLOSURE_TEXT = (
 )
 
 
-def render_ai_disclosure_banner() -> None:
-    """Zeigt den dauerhaften KI-Transparenzhinweis oben auf der Seite."""
+def render_ai_disclosure_banner(already_acknowledged: bool = False) -> None:
+    """
+    Zeigt den dauerhaften KI-Transparenzhinweis oben auf der Seite.
+
+    Variante A loest Variante B ab: wer den Hinweis dokumentiert bestaetigt
+    hat (already_acknowledged=True), braucht den Dauerbanner nicht mehr.
+    Am Login-Fenster (kein User) bleibt der Banner sichtbar.
+    """
+    if already_acknowledged:
+        return
     st.info(_AI_DISCLOSURE_TEXT)

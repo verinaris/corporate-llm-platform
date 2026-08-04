@@ -191,6 +191,9 @@ class AuditAction(str, Enum):
     CHAT_QUERY = "chat_query"
     MODEL_DENIED = "model_denied"   # Branchen-Policy hat das Modell gesperrt
 
+    # KI-Transparenz (EU AI Act Art. 50)
+    AI_DISCLOSURE_ACK = "ai_disclosure_ack"  # User hat KI-Hinweis bestaetigt
+
     # Businessplan
     PLAN_CREATED = "plan_created"
 

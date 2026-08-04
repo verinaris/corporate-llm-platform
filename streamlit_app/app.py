@@ -38,7 +38,10 @@ from streamlit_app.views import (
     users_page,
 )
 from streamlit_app.components.trial_banner import render_trial_banner
-from streamlit_app.components.ai_disclosure_banner import render_ai_disclosure_banner
+from streamlit_app.components.ai_disclosure_banner import (
+    render_ai_disclosure_banner,
+    _AI_DISCLOSURE_TEXT,
+)
 
 
 # ----------------------------------------------------------------------- #
@@ -79,7 +82,11 @@ st.markdown(
 # Der Trial-Banner wandert dagegen HINTER den Auth-Check: er ist jetzt
 # user-spezifisch (Testphase pro User) und braucht den eingeloggten User.
 # ----------------------------------------------------------------------- #
-render_ai_disclosure_banner()
+render_ai_disclosure_banner(
+    already_acknowledged=bool(
+        st.session_state.get("user", {}).get("ai_disclosure_ack_at")
+    )
+)
 
 
 # ----------------------------------------------------------------------- #
@@ -111,6 +118,29 @@ if not _is_logged_in():
 # ----------------------------------------------------------------------- #
 
 user = st.session_state["user"]
+
+# --- KI-Transparenzhinweis, Variante A: blockierende Bestaetigung -------- #
+# Wer den Hinweis noch nicht bestaetigt hat, muss das ZUERST tun (EU AI Act
+# Art. 50, dokumentierte Kenntnisnahme). st.stop() blockiert die App, bis
+# bestaetigt wurde. Nach der Bestaetigung entfaellt der dauerhafte Banner.
+if user.get("ai_disclosure_ack_at") is None:
+    st.markdown("## 🤖 Hinweis zur KI-Nutzung")
+    st.warning(_AI_DISCLOSURE_TEXT)
+    st.markdown(
+        "Bitte bestaetigen Sie, dass Sie diesen Hinweis zur Kenntnis "
+        "genommen haben. Ohne Bestaetigung koennen Sie die Anwendung "
+        "nicht nutzen."
+    )
+    if st.button("✅ Verstanden — Hinweis zur Kenntnis genommen",
+                 type="primary"):
+        try:
+            client = APIClient(token=st.session_state["token"])
+            client.acknowledge_disclosure()
+            st.session_state["user"] = client.me()  # Status auffrischen
+            st.rerun()
+        except APIError as exc:
+            st.error(f"Bestaetigung fehlgeschlagen: {exc.detail}")
+    st.stop()
 
 # Trial-Banner jetzt user-spezifisch (Variante B).
 render_trial_banner()
