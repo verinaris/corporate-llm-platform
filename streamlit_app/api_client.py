@@ -521,6 +521,10 @@ class APIClient:
 
 
 
+    def get_my_trial_status(self) -> dict[str, Any]:
+        """Trial-Status des eingeloggten Users (/trial/me, braucht Token)."""
+        return self._get("/trial/me", timeout=5)
+
     def get_trial_status(self) -> dict[str, Any]:
         """Holt den aktuellen Trial-Status (u00f6ffentlich, ohne Auth)."""
         return self._get("/trial/status", timeout=5)

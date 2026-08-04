@@ -12,6 +12,9 @@ from app.database import get_session
 from app.services import trial as trial_service
 
 
+from app.auth.dependencies import get_current_user
+from app.models import User
+
 router = APIRouter(prefix="/trial", tags=["trial"])
 
 
@@ -42,3 +45,14 @@ def get_trial_status(session: Session = Depends(get_session)):
             status_code=503,
             detail=f"Trial-Status nicht verfügbar: {exc}",
         )
+
+
+@router.get("/me")
+def get_my_trial_status(user: User = Depends(get_current_user)):
+    """
+    Trial-Status des EINGELOGGTEN Users (Variante B, pro User).
+
+    Anders als /status (global, oeffentlich) braucht dieser Endpoint
+    Auth und liefert den individuellen Status aus user.trial_started_at.
+    """
+    return trial_service.get_user_status(user)

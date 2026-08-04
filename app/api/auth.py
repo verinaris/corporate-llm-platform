@@ -64,6 +64,15 @@ def login(
             detail="Account ist deaktiviert",
         )
 
+    # Variante B: Testphase startet beim ERSTEN erfolgreichen Login.
+    # Danach nie wieder anfassen -- sonst liefe der Countdown neu.
+    if user.trial_started_at is None:
+        from datetime import datetime, timezone
+        user.trial_started_at = datetime.now(timezone.utc)
+        session.add(user)
+        session.commit()
+        session.refresh(user)
+
     token = create_access_token(user_id=user.id or 0, email=user.email)
     audit.log(
         user_email=user.email,

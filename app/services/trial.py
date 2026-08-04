@@ -12,7 +12,7 @@ Verwendung:
     status = trial.get_status(session)
 """
 
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from enum import Enum
 from typing import Optional
 
@@ -36,6 +36,7 @@ class TrialStatus(str, Enum):
 
 
 EXPIRING_SOON_HOURS = 24  # Schwellwert für "letzter Tag"
+TRIAL_DAYS = 7  # Laenge der Testphase pro User
 
 
 # ====================================== #
@@ -63,6 +64,72 @@ def get_trial_state(session: Session) -> Optional[TrialState]:
 # ====================================== #
 # Hauptfunktion: Status-Berechnung
 # ====================================== #
+
+
+def get_user_status(user) -> dict:
+    """
+    Trial-Status fuer EINEN User (Variante B: Uhr laeuft ab erstem Login).
+
+    Datenquelle ist user.trial_started_at statt der globalen TrialState-Zeile.
+    Ist trial_started_at noch None (User hat sich nie eingeloggt), gilt die
+    Testphase als noch nicht gestartet -> volle Laufzeit, Status ACTIVE.
+    Die Rechenlogik (EXPIRED/EXPIRING_SOON/ACTIVE) ist identisch zur globalen
+    get_status, nur die Quelle unterscheidet sich.
+    """
+    now = datetime.now(timezone.utc)
+    started = getattr(user, "trial_started_at", None)
+
+    # Noch nie eingeloggt -> Testphase noch nicht angelaufen, volle Zeit.
+    if started is None:
+        return {
+            "status": TrialStatus.ACTIVE,
+            "days_remaining": TRIAL_DAYS,
+            "hours_remaining": TRIAL_DAYS * 24,
+            "installed_at": None,
+            "expires_at": None,
+            "message": f"Verinaris Testversion — {TRIAL_DAYS} Tage verbleibend.",
+        }
+
+    started = _ensure_utc(started)
+    expires_at = started + timedelta(days=TRIAL_DAYS)
+    remaining = expires_at - now
+    days = remaining.days
+    hours = int(remaining.total_seconds() / 3600)
+
+    if hours < 0:
+        return {
+            "status": TrialStatus.EXPIRED,
+            "days_remaining": 0,
+            "hours_remaining": 0,
+            "installed_at": started.isoformat(),
+            "expires_at": expires_at.isoformat(),
+            "message": (
+                "Die 7-tägige Testphase ist beendet. "
+                "Für die weitere Nutzung kontaktieren Sie info@verinaris.de"
+            ),
+        }
+
+    if hours < EXPIRING_SOON_HOURS:
+        return {
+            "status": TrialStatus.EXPIRING_SOON,
+            "days_remaining": 0,
+            "hours_remaining": hours,
+            "installed_at": started.isoformat(),
+            "expires_at": expires_at.isoformat(),
+            "message": (
+                f"⚠️ Letzter Tag der Testphase ({hours}h verbleibend). "
+                "Kontakt für Lizenz: info@verinaris.de"
+            ),
+        }
+
+    return {
+        "status": TrialStatus.ACTIVE,
+        "days_remaining": days,
+        "hours_remaining": hours,
+        "installed_at": started.isoformat(),
+        "expires_at": expires_at.isoformat(),
+        "message": f"Verinaris Testversion — {days} Tage verbleibend.",
+    }
 
 
 def get_status(session: Session) -> dict:

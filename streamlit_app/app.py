@@ -75,9 +75,10 @@ st.markdown(
 
 
 # ----------------------------------------------------------------------- #
-# Trial-Banner (erscheint auf JEDER Seite, vor Auth-Check)
+# KI-Transparenzhinweis (EU AI Act Art. 50) — fuer ALLE, auch vor Login.
+# Der Trial-Banner wandert dagegen HINTER den Auth-Check: er ist jetzt
+# user-spezifisch (Testphase pro User) und braucht den eingeloggten User.
 # ----------------------------------------------------------------------- #
-render_trial_banner()
 render_ai_disclosure_banner()
 
 
@@ -110,6 +111,9 @@ if not _is_logged_in():
 # ----------------------------------------------------------------------- #
 
 user = st.session_state["user"]
+
+# Trial-Banner jetzt user-spezifisch (Variante B).
+render_trial_banner()
 
 
 def _fetch_collections() -> list[str]:

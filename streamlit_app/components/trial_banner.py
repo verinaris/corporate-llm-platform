@@ -57,9 +57,13 @@ def _fetch_trial_status() -> Optional[dict]:
     Returns:
         Status-Dict oder None bei Fehler.
     """
+    import streamlit as st
+    token = st.session_state.get("token")
+    if not token:
+        return None  # Kein eingeloggter User -> kein Trial-Banner
     try:
-        client = APIClient()  # Public Endpoint — kein Token nötig
-        return client.get_trial_status()
+        client = APIClient(token=token)
+        return client.get_my_trial_status()
     except Exception:
         # Bewusst alle Exceptions schlucken — Banner ist Add-on
         return None
