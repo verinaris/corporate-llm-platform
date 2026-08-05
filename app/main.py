@@ -63,11 +63,27 @@ def bootstrap_admin() -> None:
         print(f"[Bootstrap] Admin-User angelegt: {settings.bootstrap_admin_email}")
 
 
+def _register_tools() -> None:
+    """
+    Registriert die verfuegbaren Tools beim App-Start. Idempotent -- ein
+    bereits registriertes Tool (z.B. bei Reload) wird uebersprungen statt
+    einen ValueError zu werfen.
+    """
+    from app.tools.registry import ToolRegistry
+    from app.tools.search_documents import SearchDocumentsTool
+    from app.tools.regulation_import import RegulationImportTool
+
+    for tool in (SearchDocumentsTool(), RegulationImportTool()):
+        if ToolRegistry.get(tool.name) is None:
+            ToolRegistry.register(tool)
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Wird beim App-Start und -Stop aufgerufen."""
     init_db()
     bootstrap_admin()
+    _register_tools()
     yield
 
 
