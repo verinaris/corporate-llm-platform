@@ -85,6 +85,18 @@ def _run_lightweight_migrations() -> None:
                 conn.commit()
                 print(f"[Migration] users.{spalte} hinzugefügt")
 
+    # --- Audit-Log Hash-Kette (LOG-01/02) ---
+    with engine.connect() as conn:
+        result = conn.exec_driver_sql("PRAGMA table_info(audit_log)")
+        audit_cols = {row[1] for row in result}
+        for spalte in ("prev_hash", "entry_hash"):
+            if spalte not in audit_cols:
+                conn.exec_driver_sql(
+                    f"ALTER TABLE audit_log ADD COLUMN {spalte} TEXT"
+                )
+                conn.commit()
+                print(f"[Migration] audit_log.{spalte} hinzugefügt")
+
     # Backfill: bestehende Dokumente bekommen ihren Hash nachträglich
     _backfill_content_hashes()
 

@@ -37,6 +37,10 @@ class Settings(BaseSettings):
 
     # --- Datenbank ---
     database_url: str = "sqlite:///./data/platform.db"
+    # Aufbewahrungsdauer der Audit-Logs in Tagen. Der konkrete Wert
+    # ist eine juristische Entscheidung (technische Zugriffslogs kurz,
+    # Compliance-Nachweise ggf. Jahre) -- hier nur der Mechanismus.
+    audit_retention_days: int = 3650  # Default 10 Jahre (Pharma-konform)
 
     # --- Server ---
     host: str = "0.0.0.0"

@@ -252,6 +252,12 @@ class AuditLog(SQLModel, table=True):
     # Ergebnis
     success: bool = Field(default=True, index=True)
 
+    # Manipulationssicherheit (LOG-01/02): Hash-Kette. entry_hash ist der
+    # SHA-256 ueber den Eintragsinhalt + prev_hash. Nachtraegliche Aenderung
+    # eines Eintrags bricht die Kette am Folgeeintrag sichtbar.
+    prev_hash: Optional[str] = Field(default=None)
+    entry_hash: Optional[str] = Field(default=None, index=True)
+
 
 # ====================================== #
 # Trial / Lizenz
