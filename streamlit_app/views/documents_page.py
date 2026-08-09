@@ -56,7 +56,7 @@ def normalize_collection_name(raw: str) -> str:
 def render() -> None:
     st.title("📚 Wissensbibliothek")
     st.caption(
-        "Lade PDFs hoch. Sie werden in Stücke zerlegt, embedded "
+        "Laden Sie PDFs hoch. Sie werden in Stücke zerlegt, embedded "
         "und stehen danach für RAG-Anfragen im Chat zur Verfügung."
     )
 
@@ -68,7 +68,7 @@ def render() -> None:
     if not is_privileged:
         st.warning(
             "🔒 Nur **Admin** und **Compliance-Officer** dürfen Dokumente "
-            "hochladen oder löschen. Du kannst weiterhin Sammlungen im Chat nutzen."
+            "hochladen oder löschen. Sie können weiterhin Sammlungen im Chat nutzen."
         )
 
     client = APIClient(token=st.session_state.get("token"))
@@ -149,7 +149,7 @@ def _render_upload(client: APIClient, is_privileged: bool) -> None:
                 "Beschreibung der Sammlung (optional, beliebig lang)",
                 placeholder=(
                     "Wofür ist diese Sammlung gedacht? "
-                    "Hier kannst du den vollen, langen Titel reinschreiben "
+                    "Hier können Sie den vollständigen Titel eintragen "
                     "(z.B. 'Moderner Anforderungsmanagement Gesamtskript Q4/2024')."
                 ),
                 max_chars=2000,
@@ -172,7 +172,7 @@ def _render_upload(client: APIClient, is_privileged: bool) -> None:
         if suggestion and len(suggestion) >= COLLECTION_NAME_MIN:
             st.info(
                 f"💡 Vorschlag basierend auf Dateinamen: `{suggestion}`  \n"
-                "Du kannst diesen Namen oben ins Feld kopieren oder einen eigenen wählen."
+                "Sie können diesen Namen oben ins Feld kopieren oder einen eigenen wählen."
             )
 
     # Upload-Voraussetzungen
@@ -300,7 +300,7 @@ def _do_upload_with_phases(
             f"- **Dateiname (gespeichert):** {duplicate_info.get('filename', '?')}\n"
             f"- **Hochgeladen am:** {uploaded_pretty}\n"
             f"- **Von:** {duplicate_info.get('uploaded_by', '?')}\n\n"
-            f"Tipp: Wähle eine andere Sammlung oder lösche die bestehende "
+            f"Tipp: Wählen Sie eine andere Sammlung oder löschen Sie die bestehende "
             f"Datei zuerst (Tab → 📂 Sammlungen)."
         )
         return
@@ -328,7 +328,7 @@ def _render_collections(client: APIClient, role: str) -> None:
         return
 
     if not collections:
-        st.info("Noch keine Sammlungen vorhanden. Lade zuerst ein PDF hoch.")
+        st.info("Noch keine Sammlungen vorhanden. Laden Sie zuerst ein PDF hoch.")
         return
 
     is_privileged = role in ("admin", "compliance-officer", "qualified-reviewer")

@@ -24,7 +24,7 @@ def render() -> None:
         with st.form("login_form", clear_on_submit=False):
             email = st.text_input(
                 "E-Mail",
-                placeholder="dein.name@firma.de",
+                placeholder="vorname.nachname@firma.de",
                 autocomplete="username",
             )
             password = st.text_input(

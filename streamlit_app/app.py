@@ -345,7 +345,7 @@ with st.sidebar:
         ) if st.session_state.get("active_collection", "— keine —") in collections else 0,
         label_visibility="collapsed",
         help=(
-            "Wähle eine Sammlung, um Antworten aus deinen Dokumenten zu erhalten "
+            "Wählen Sie eine Sammlung, um Antworten aus Ihren Dokumenten zu erhalten "
             "(RAG). Bei 'keine' antwortet Claude aus Allgemeinwissen."
         ),
     )
@@ -397,7 +397,7 @@ with st.sidebar:
             label_visibility="collapsed",
             help=(
                 "☁️ Cloud-Modelle = Claude (kosten pro Token).\n"
-                "💻 Lokale Modelle (Ollama) = laufen auf deinem Mac, "
+                "💻 Lokale Modelle (Ollama) = laufen auf diesem Server, "
                 "0$ pro Token, aber langsamer und meist schwächer."
             ),
         )
@@ -406,7 +406,7 @@ with st.sidebar:
         if any(selected_id.lower().startswith(p) for p in (
             "llama", "qwen", "mistral", "phi", "gemma"
         )) or ":" in selected_id:
-            st.caption("💻 **Lokales Modell** — keine Daten verlassen deinen Mac")
+            st.caption("💻 **Lokales Modell** — Ihre Daten verlassen diese Installation nicht")
 
     st.session_state["selected_model_label"] = selected
     st.session_state["selected_model_id"] = model_dict.get(selected) if model_dict else None

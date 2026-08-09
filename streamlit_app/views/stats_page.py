@@ -11,9 +11,9 @@ def render() -> None:
 
     user = st.session_state.get("user", {})
     if user.get("role") == "admin":
-        st.caption("Du bist Admin → du siehst Verbrauch aller User.")
+        st.caption("Sie sind Admin — Sie sehen den Verbrauch aller User.")
     else:
-        st.caption("Du siehst nur deine eigenen Verbräuche.")
+        st.caption("Sie sehen nur Ihre eigenen Verbräuche.")
 
     token = st.session_state.get("token")
     client = APIClient(token=token)

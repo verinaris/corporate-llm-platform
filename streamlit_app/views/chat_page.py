@@ -32,7 +32,7 @@ def render() -> None:
             if usage := msg.get("usage"):
                 st.caption(_format_usage(usage))
 
-    if prompt := st.chat_input("Was möchtest du wissen?"):
+    if prompt := st.chat_input("Was möchten Sie wissen?"):
         _handle_user_message(prompt)
 
 
@@ -201,7 +201,7 @@ def _fetch_pdf_into_state(document_id: int, state_key: str, filename: str) -> No
     token = st.session_state.get("token")
     client = APIClient(token=token)
     try:
-        with st.spinner("Lade PDF…"):
+        with st.spinner("PDF wird geladen…"):
             file_bytes, file_name = client.get_document_file(document_id)
         st.session_state[state_key] = {
             "bytes": file_bytes,

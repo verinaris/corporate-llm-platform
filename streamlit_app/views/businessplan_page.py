@@ -400,7 +400,7 @@ def _render_saved_plans(client: APIClient) -> None:
         return
 
     if not plans:
-        st.info("Noch keine gespeicherten Pläne. Erstelle einen im Tab '✏️ Neuer'.")
+        st.info("Noch keine gespeicherten Pläne. Erstellen Sie einen im Tab '✏️ Neuer'.")
         return
 
     for p in plans:

@@ -394,7 +394,7 @@ async def upload_document_stream(
             yield event({
                 "phase": "embed",
                 "status": "start",
-                "msg": f"Erstelle Embeddings für {len(processed.chunks)} Chunks…",
+                "msg": f"Embeddings werden erstellt für {len(processed.chunks)} Chunks…",
             })
             t1 = time.perf_counter()
 

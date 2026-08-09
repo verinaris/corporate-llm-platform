@@ -182,8 +182,8 @@ _INDUSTRY_PROGRAMS: dict[str, list[FundingMatch]] = {
             fit="Mittel",
             why=(
                 "Zuschuss für Beratungs-/Digitalisierungsleistungen bei KMU-Kunden. "
-                "Indirekt nutzbar: deine Pharma-Kunden können go-digital für "
-                "deine Beratungsleistung einsetzen."
+                "Indirekt nutzbar: Ihre Pharma-Kunden können go-digital für "
+                "Ihre Beratungsleistung einsetzen."
             ),
             next_step=(
                 "Als autorisiertes Beratungsunternehmen registrieren — "

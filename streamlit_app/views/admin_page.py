@@ -157,12 +157,12 @@ def _render_dsgvo_delete(client: APIClient) -> None:
     user_id = st.number_input(
         "User-ID zum Löschen",
         min_value=1, step=1,
-        help="Die User-ID findest du im Audit-Log oder via User-Verwaltung.",
+        help="Die User-ID finden Sie im Audit-Log oder über die User-Verwaltung.",
     )
 
     expected = f"DELETE USER {user_id}"
     confirm = st.text_input(
-        f'Tippe `{expected}` um die Löschung freizugeben:',
+        f'Geben Sie `{expected}` ein, um die Löschung freizugeben:',
         placeholder=expected,
         help="Bestätigungsphrase im GitHub-Stil — Groß-/Kleinschreibung wird ignoriert.",
     )

@@ -158,7 +158,7 @@ def _render_neu(client: APIClient) -> None:
     passwort = st.text_input(
         "Passwort",
         value=st.session_state.gen_passwort,
-        help="Mindestens 8 Zeichen. Editierbar, falls du ein eigenes setzen willst.",
+        help="Mindestens 8 Zeichen. Editierbar, falls Sie ein eigenes setzen möchten.",
     )
     if st.button("🎲 Neues Passwort erzeugen"):
         st.session_state.gen_passwort = _neues_passwort()
