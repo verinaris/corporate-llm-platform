@@ -243,8 +243,8 @@ def _render_branch_selector(user: dict) -> None:
     if current_branch == "pharma":
         st.info(
             "💊 **Pharma-Mode aktiv**\n\n"
-            "Chat folgt HWG/AMG-Regeln. Businessplan-Vorlagen + "
-            "Industry-Checks für Pharma sichtbar.",
+            "Chat folgt HWG/AMG-Regeln. Antworten enthalten einen "
+            "Compliance-Hinweis. Cloud-Modelle sind gesperrt.",
             icon="⚖️",
         )
 

@@ -65,7 +65,7 @@ _PROFILES: dict[str, IndustryProfile] = {
         icon="💊",
         description=(
             "Compliance-Filter für HWG/AMG/FSA-Kodex aktiv. "
-            "Industry-Checks (Pharmakovigilanz, DSGVO Art. 9) im Businessplan. "
+            "Jede Antwort erhält einen Compliance-Hinweis (HWG/AMG/DSGVO). "
             "Cloud-Modelle gesperrt — Daten bleiben auf eigener Hardware."
         ),
         self_assignable=False,
