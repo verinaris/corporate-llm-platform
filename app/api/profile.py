@@ -138,7 +138,7 @@ def update_my_branch(
             detail=(
                 "Diese Branche kann nur ein Admin setzen. "
                 "Regulierte Branchen (z.B. Pharma) sind bewusst nicht "
-                "selbst waehlbar -- bitte an die Administration wenden."
+                "selbst wählbar -- bitte an die Administration wenden."
             ),
         )
 

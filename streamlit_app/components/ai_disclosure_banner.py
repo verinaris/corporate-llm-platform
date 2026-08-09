@@ -13,9 +13,9 @@ import streamlit as st
 # Zentral, damit der Text an einer Stelle steht und juristisch leicht
 # anpassbar bleibt.
 _AI_DISCLOSURE_TEXT = (
-    "🤖 **Hinweis:** Sie interagieren mit einem KI-System. Antworten koennen "
+    "🤖 **Hinweis:** Sie interagieren mit einem KI-System. Antworten können "
     "Fehler enthalten und ersetzen keine fachliche, rechtliche oder "
-    "medizinische Beratung. Pruefen Sie Ergebnisse vor einer Verwendung."
+    "medizinische Beratung. Prüfen Sie Ergebnisse vor einer Verwendung."
 )
 
 

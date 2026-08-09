@@ -29,7 +29,7 @@ class Settings(BaseSettings):
     ollama_base_url: str = "http://localhost:11434"
 
     # --- App ---
-    app_name: str = "Corporate LLM Platform"
+    app_name: str = "Verinaris"
     app_env: str = "development"  # development | staging | production
     app_debug: bool = True
     default_model: str = "claude-sonnet-4-6"

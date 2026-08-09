@@ -10,7 +10,7 @@ import os
 BACKEND_URL = os.getenv("BACKEND_URL", "http://localhost:8000")
 
 # UI-Strings
-APP_TITLE = "Corporate LLM Platform"
+APP_TITLE = "Verinaris"
 APP_ICON = "🤖"
 
 # Verfügbare Modelle (Anzeige-Label → Modell-ID)

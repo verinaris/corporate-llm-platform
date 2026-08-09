@@ -164,7 +164,7 @@ class ToolRegistry:
                         success=False,
                     )
                     raise PermissionDeniedError(
-                        f"Approval-Token fuer '{name}' ist ungueltig oder abgelaufen"
+                        f"Approval-Token für '{name}' ist ungültig oder abgelaufen"
                     )
             else:
                 # Kein Token -> automatisch Antrag anlegen und ApprovalPending werfen

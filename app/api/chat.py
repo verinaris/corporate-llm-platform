@@ -94,9 +94,9 @@ async def chat(
             session=session,
         )
         hinweis = (
-            f" Bitte ein lokales Modell waehlen, z.B. '{profile.default_model}'."
+            f" Bitte ein lokales Modell wählen, z.B. '{profile.default_model}'."
             if profile.default_model
-            else " Bitte ein lokales Modell waehlen."
+            else " Bitte ein lokales Modell wählen."
         )
         raise HTTPException(
             status_code=403,
@@ -184,10 +184,10 @@ async def chat(
             detail={
                 "status": "approval_pending",
                 "message": (
-                    f"Der Vorgang fuer Tool '{exc.tool_name}' "
+                    f"Der Vorgang für Tool '{exc.tool_name}' "
                     f"wurde als Antrag Nr. {exc.request_id} eingereicht. "
-                    "Ein Compliance-Officer wird die Freigabe pruefen. "
-                    "Sie koennen den Status unter 'Freigaben' verfolgen."
+                    "Ein Compliance-Officer wird die Freigabe prüfen. "
+                    "Sie können den Status unter 'Freigaben' verfolgen."
                 ),
                 "request_id": exc.request_id,
                 "tool_name": exc.tool_name,

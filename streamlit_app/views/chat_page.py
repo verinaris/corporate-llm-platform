@@ -92,16 +92,16 @@ def _handle_user_message(prompt: str) -> None:
             tool_name = response.get("tool_name", "?")
             st.info(
                 f"⏳ **Freigabe erforderlich**\n\n"
-                f"Der Vorgang fuer Tool **{tool_name}** wurde als "
+                f"Der Vorgang für Tool **{tool_name}** wurde als "
                 f"Antrag **Nr. {request_id}** eingereicht.\n\n"
-                f"Ein Compliance-Officer wird die Freigabe pruefen. "
-                f"Sie koennen den Status unter **Freigaben** verfolgen."
+                f"Ein Compliance-Officer wird die Freigabe prüfen. "
+                f"Sie können den Status unter **Freigaben** verfolgen."
             )
             # Nachricht als Hinweis in History speichern und return
             st.session_state["messages"].append({
                 "role": "assistant",
                 "content": (
-                    f"⏳ Antrag Nr. {request_id} fuer Tool '{tool_name}' "
+                    f"⏳ Antrag Nr. {request_id} für Tool '{tool_name}' "
                     f"wurde eingereicht. Warte auf Freigabe."
                 ),
                 "sources": [],

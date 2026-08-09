@@ -44,7 +44,7 @@ class RegulationImportTool(AutomationTool):
     description = (
         "Importiert eine oeffentlich zugaengliche Regulierungsquelle (z.B. eine "
         "EMA- oder EUR-Lex-Seite) per URL: holt den Text, erstellt eine "
-        "Zusammenfassung zur Pruefung und legt die Quelle nach Freigabe in einer "
+        "Zusammenfassung zur Prüfung und legt die Quelle nach Freigabe in einer "
         "Wissenssammlung ab."
     )
     parameters_schema = {
@@ -117,7 +117,7 @@ class RegulationImportTool(AutomationTool):
                 "model": _LOCAL_MODEL,
                 "note": (
                     "Zusammenfassung durch lokales Modell erstellt und vor Ablage "
-                    "fachlich zu pruefen. Bei Freigabe wird der VOLLTEXT der Quelle "
+                    "fachlich zu prüfen. Bei Freigabe wird der VOLLTEXT der Quelle "
                     "(nicht die Zusammenfassung) in die Wissenssammlung gechunkt."
                 ),
             },

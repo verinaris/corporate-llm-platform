@@ -54,22 +54,22 @@ def render():
 
     if not can_decide:
         st.info(
-            "Sie sehen alle offenen Freigabe-Antraege zur Nachvollziehbarkeit. "
-            "Entscheidungen koennen nur Compliance-Officer treffen."
+            "Sie sehen alle offenen Freigabe-Anträge zur Nachvollziehbarkeit. "
+            "Entscheidungen können nur Compliance-Officer treffen."
         )
 
     # Offene Antraege laden
     try:
         pending = list_pending()
     except Exception as exc:
-        st.error(f"Antraege konnten nicht geladen werden: {exc}")
+        st.error(f"Anträge konnten nicht geladen werden: {exc}")
         return
 
     if not pending:
-        st.success("Keine offenen Freigabe-Antraege.")
+        st.success("Keine offenen Freigabe-Anträge.")
         return
 
-    st.write(f"**{len(pending)} offene Antraege**")
+    st.write(f"**{len(pending)} offene Anträge**")
     st.divider()
 
     for req in pending:

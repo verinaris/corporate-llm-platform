@@ -108,7 +108,7 @@ def _render_liste(client: APIClient, user: dict) -> None:
         return f"{u.get('email')} — {u.get('role')} — {status}"
 
     labels = [_label(u) for u in andere]
-    gewaehlt_label = st.selectbox("User waehlen", labels, key="_toggle_user")
+    gewaehlt_label = st.selectbox("User wählen", labels, key="_toggle_user")
     gewaehlt = andere[labels.index(gewaehlt_label)]
 
     ist_aktiv = gewaehlt.get("is_active", gewaehlt.get("active", True))
@@ -116,7 +116,7 @@ def _render_liste(client: APIClient, user: dict) -> None:
     aktion = "deaktivieren" if ist_aktiv else "aktivieren"
 
     bestaetigt = st.checkbox(
-        f"Ja, ich moechte '{gewaehlt.get('email')}' {aktion}.",
+        f"Ja, ich möchte '{gewaehlt.get('email')}' {aktion}.",
         key="_toggle_confirm",
     )
 

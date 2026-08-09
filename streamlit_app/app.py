@@ -55,7 +55,7 @@ st.set_page_config(
     initial_sidebar_state="expanded",
     menu_items={
         "About": (
-            "Corporate LLM Platform — interne Plattform für KI-gestützte "
+            "Verinaris — interne Plattform für KI-gestützte "
             "Wissensarbeit. Konzipiert mit DSGVO und EU AI Act im Blick."
         ),
     },
@@ -127,8 +127,8 @@ if user.get("ai_disclosure_ack_at") is None:
     st.markdown("## 🤖 Hinweis zur KI-Nutzung")
     st.warning(_AI_DISCLOSURE_TEXT)
     st.markdown(
-        "Bitte bestaetigen Sie, dass Sie diesen Hinweis zur Kenntnis "
-        "genommen haben. Ohne Bestaetigung koennen Sie die Anwendung "
+        "Bitte bestätigen Sie, dass Sie diesen Hinweis zur Kenntnis "
+        "genommen haben. Ohne Bestätigung können Sie die Anwendung "
         "nicht nutzen."
     )
     if st.button("✅ Verstanden — Hinweis zur Kenntnis genommen",
@@ -139,7 +139,7 @@ if user.get("ai_disclosure_ack_at") is None:
             st.session_state["user"] = client.me()  # Status auffrischen
             st.rerun()
         except APIError as exc:
-            st.error(f"Bestaetigung fehlgeschlagen: {exc.detail}")
+            st.error(f"Bestätigung fehlgeschlagen: {exc.detail}")
     st.stop()
 
 # Trial-Banner jetzt user-spezifisch (Variante B).
@@ -360,7 +360,7 @@ with st.sidebar:
             max_value=10,
             value=st.session_state.get("rag_top_k", 6),
             help=(
-                "Wie viele Textstellen aus der Wissensbibliothek fuer die Antwort "
+                "Wie viele Textstellen aus der Wissensbibliothek für die Antwort "
                 "herangezogen werden. Mehr = gruendlicher, aber langsamer. Bei sehr "
                 "vielen kann die Antwort auch abgeschnitten werden."
             ),
