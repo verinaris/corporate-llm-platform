@@ -73,6 +73,25 @@ def login(
         user.trial_started_at = datetime.now(timezone.utc)
         session.add(user)
         session.commit()
+
+    # Optionaler Passwort-Ablauf (Option B): nur wenn per Settings aktiviert
+    # (password_max_age_days > 0). Ist das Passwort aelter als die Frist --
+    # oder wurde noch nie ueber die Aender-Funktion gesetzt (kein Zeitstempel)
+    # bei aktivierter Richtlinie -- wird ein Wechsel erzwungen. Das Frontend-
+    # Gate aus dem Erstpasswort-Zwang greift dann automatisch.
+    from app.config import get_settings as _get_settings
+    _max_age = _get_settings().password_max_age_days
+    if _max_age > 0 and not user.must_change_password:
+        from datetime import datetime, timezone, timedelta
+        _grenze = datetime.now(timezone.utc) - timedelta(days=_max_age)
+        _changed = user.password_changed_at
+        # naiv gelesene DB-Zeit als UTC interpretieren (wie bei der Hash-Kette)
+        if _changed is not None and _changed.tzinfo is None:
+            _changed = _changed.replace(tzinfo=timezone.utc)
+        if _changed is None or _changed < _grenze:
+            user.must_change_password = True
+            session.add(user)
+            session.commit()
         session.refresh(user)
 
     token = create_access_token(user_id=user.id or 0, email=user.email)

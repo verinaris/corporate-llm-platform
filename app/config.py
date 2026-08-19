@@ -42,6 +42,12 @@ class Settings(BaseSettings):
     # Compliance-Nachweise ggf. Jahre) -- hier nur der Mechanismus.
     audit_retention_days: int = 3650  # Default 10 Jahre (Pharma-konform)
 
+    # Optionaler Passwort-Ablauf (Option B). 0 = AUS (Default, entspricht
+    # der aktuellen NIST/BSI-Empfehlung: kein pauschaler Zwangswechsel).
+    # Ein Kunde mit eigener Richtlinie kann z. B. 90 setzen -- dann muss
+    # nach so vielen Tagen einmalig ein neues Passwort gesetzt werden.
+    password_max_age_days: int = 0
+
     # --- Server ---
     host: str = "0.0.0.0"
     port: int = 8000
