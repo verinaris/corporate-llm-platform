@@ -120,6 +120,58 @@ if not _is_logged_in():
 
 user = st.session_state["user"]
 
+# --- Erstpasswort-Zwang: blockierendes Gate VOR dem KI-Hinweis ---------- #
+# Ein neu angelegter User muss sein vom Admin vergebenes Erstpasswort
+# aendern, bevor er die Plattform nutzt. Erst danach handelt nachweislich
+# der Nutzer selbst -- deshalb dieses Gate VOR der KI-Kenntnisnahme.
+# Dasselbe Gate greift, wenn ein optionaler Passwort-Ablauf (Option B)
+# eine Aenderung faellig macht (must_change_password wird dann serverseitig
+# gesetzt).
+if user.get("must_change_password"):
+    st.markdown("## 🔑 Neues Passwort vergeben")
+    st.info(
+        "Bevor Sie die Plattform nutzen können, ändern Sie bitte Ihr "
+        "Passwort. Das vom Administrator vergebene Erstpasswort ist nur "
+        "für die erste Anmeldung gedacht."
+    )
+
+    if st.button("🎲 Sicheres Passwort vorschlagen", key="_first_pw_gen"):
+        st.session_state["first_pw_vorschlag"] = neues_passwort()
+    if st.session_state.get("first_pw_vorschlag"):
+        st.code(st.session_state["first_pw_vorschlag"], language=None)
+        st.caption(
+            "⚠️ Bitte JETZT notieren — nach dem Ändern wird das Passwort "
+            "nicht mehr angezeigt. Tragen Sie es unten als neues Passwort ein."
+        )
+
+    with st.form("first_pw_form", clear_on_submit=False):
+        _fp_alt = st.text_input("Aktuelles (Erst-)Passwort", type="password")
+        _fp_neu = st.text_input("Neues Passwort", type="password")
+        _fp_neu2 = st.text_input("Neues Passwort wiederholen", type="password")
+        _fp_submit = st.form_submit_button("Passwort ändern und fortfahren",
+                                           type="primary")
+
+    if _fp_submit:
+        if not _fp_alt or not _fp_neu:
+            st.warning("Bitte alle Felder ausfüllen.")
+        elif _fp_neu != _fp_neu2:
+            st.warning("Die beiden neuen Passwörter stimmen nicht überein.")
+        elif len(_fp_neu) < 8:
+            st.warning("Das neue Passwort muss mindestens 8 Zeichen lang sein.")
+        elif _fp_neu == _fp_alt:
+            st.warning("Das neue Passwort muss sich vom alten unterscheiden.")
+        else:
+            try:
+                client = APIClient(token=st.session_state["token"])
+                client.change_password(_fp_alt, _fp_neu)
+                st.session_state["user"] = client.me()  # Flag ist jetzt False
+                st.session_state.pop("first_pw_vorschlag", None)
+                st.success("Passwort geändert. Weiter geht es …")
+                st.rerun()
+            except APIError as exc:
+                st.error(f"Änderung fehlgeschlagen: {exc.detail}")
+    st.stop()
+
 # --- KI-Transparenzhinweis, Variante A: blockierende Bestaetigung -------- #
 # Wer den Hinweis noch nicht bestaetigt hat, muss das ZUERST tun (EU AI Act
 # Art. 50, dokumentierte Kenntnisnahme). st.stop() blockiert die App, bis

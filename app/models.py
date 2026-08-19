@@ -74,6 +74,15 @@ class User(SQLModel, table=True):
     # angelegt, Bestaetigungs-Logik kommt spaeter (erspart 2. Migration).
     ai_disclosure_ack_at: Optional[datetime] = Field(default=None)
 
+    # Erstpasswort-Zwang: True = User muss sein Passwort aendern, bevor er
+    # die Plattform nutzen kann. Wird bei der Anlage neuer User auf True
+    # gesetzt, nach erfolgreicher Aenderung auf False. Bestandsuser: False.
+    must_change_password: bool = Field(default=False)
+
+    # Zeitpunkt der letzten Passwortaenderung (fuer optionalen Ablauf,
+    # Option B). None = noch nie geaendert bzw. Bestandsuser vor Migration.
+    password_changed_at: Optional[datetime] = Field(default=None)
+
 
 class TokenUsage(SQLModel, table=True):
     """Loggt jeden LLM-Request mit Token-Verbrauch und Kosten."""

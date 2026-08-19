@@ -161,7 +161,11 @@ def change_password(
             detail="Das neue Passwort muss sich vom alten unterscheiden.",
         )
 
+    from datetime import datetime, timezone
+
     user.password_hash = hash_password(payload.new_password)
+    user.must_change_password = False
+    user.password_changed_at = datetime.now(timezone.utc)
     session.add(user)
     session.commit()
     session.refresh(user)

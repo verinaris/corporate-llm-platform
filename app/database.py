@@ -85,6 +85,20 @@ def _run_lightweight_migrations() -> None:
                 conn.commit()
                 print(f"[Migration] users.{spalte} hinzugefügt")
 
+        # Erstpasswort-Zwang + optionaler Passwort-Ablauf (Option B)
+        if "must_change_password" not in user_cols:
+            conn.exec_driver_sql(
+                "ALTER TABLE users ADD COLUMN must_change_password BOOLEAN DEFAULT 0"
+            )
+            conn.commit()
+            print("[Migration] users.must_change_password hinzugefügt")
+        if "password_changed_at" not in user_cols:
+            conn.exec_driver_sql(
+                "ALTER TABLE users ADD COLUMN password_changed_at DATETIME"
+            )
+            conn.commit()
+            print("[Migration] users.password_changed_at hinzugefügt")
+
     # --- Audit-Log Hash-Kette (LOG-01/02) ---
     with engine.connect() as conn:
         result = conn.exec_driver_sql("PRAGMA table_info(audit_log)")

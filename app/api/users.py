@@ -50,6 +50,7 @@ def create_user(
         password_hash=hash_password(payload.password),
         role=payload.role,
         branch=payload.branch,
+        must_change_password=True,  # Erstpasswort muss beim ersten Login geaendert werden
     )
     session.add(user)
     session.commit()

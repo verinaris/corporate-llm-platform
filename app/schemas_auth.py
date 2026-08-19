@@ -20,6 +20,7 @@ class UserOut(BaseModel):
     branch: UserBranch
     is_active: bool
     ai_disclosure_ack_at: Optional[datetime] = None
+    must_change_password: bool = False
 
     @classmethod
     def from_user(cls, user: User) -> "UserOut":
@@ -30,6 +31,7 @@ class UserOut(BaseModel):
             branch=user.branch,
             is_active=user.is_active,
             ai_disclosure_ack_at=user.ai_disclosure_ack_at,
+            must_change_password=user.must_change_password,
         )
 
 
