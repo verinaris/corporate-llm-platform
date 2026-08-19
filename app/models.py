@@ -194,6 +194,9 @@ class AuditAction(str, Enum):
     # KI-Transparenz (EU AI Act Art. 50)
     AI_DISCLOSURE_ACK = "ai_disclosure_ack"  # User hat KI-Hinweis bestaetigt
 
+    # Auth / Sicherheit
+    PASSWORD_CHANGED = "password_changed"  # pragma: allowlist secret  # User hat sein Passwort geaendert
+
     # Businessplan
     PLAN_CREATED = "plan_created"
 

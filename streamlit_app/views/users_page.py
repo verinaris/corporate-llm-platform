@@ -15,6 +15,7 @@ import string
 import streamlit as st
 
 from streamlit_app.api_client import APIClient, APIError
+from streamlit_app.passwords_util import neues_passwort as _neues_passwort, PASSWORT_LAENGE
 
 # Rollen-Code -> Beschriftung im Dropdown (Werte aus app/models.py UserRole)
 ROLLEN: dict[str, str] = {
@@ -25,20 +26,8 @@ ROLLEN: dict[str, str] = {
     "admin": "Admin — darf User verwalten",
 }
 
-PASSWORT_LAENGE = 16
 
 
-def _neues_passwort(laenge: int = PASSWORT_LAENGE) -> str:
-    """
-    Zufallspasswort aus Buchstaben und Ziffern.
-
-    secrets statt random: random ist bei bekanntem Startwert vorhersagbar,
-    secrets nicht. Sonderzeichen bewusst weggelassen — das Passwort wird
-    vorgelesen oder per Mail verschickt, da ist Verwechslungsfreiheit mehr
-    wert als zwei Bit Entropie.
-    """
-    alphabet = string.ascii_letters + string.digits
-    return "".join(secrets.choice(alphabet) for _ in range(laenge))
 
 
 def render() -> None:

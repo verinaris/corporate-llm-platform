@@ -11,11 +11,13 @@ from sqlmodel import Session, select
 
 from app.auth.dependencies import get_current_user
 from app.auth.jwt import create_access_token
-from app.auth.passwords import verify_password
+from app.auth.passwords import verify_password, hash_password
 from app.database import get_session
 from app.models import AuditAction, User
 from app.schemas_auth import LoginResponse, UserOut
 from app.services import audit
+
+from pydantic import BaseModel
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
@@ -120,5 +122,57 @@ def acknowledge_disclosure(
             action=AuditAction.AI_DISCLOSURE_ACK,
             ip_address=ip, user_agent=ua,
         )
+
+    return UserOut.from_user(user)
+
+
+class ChangePasswordRequest(BaseModel):
+    old_password: str
+    new_password: str
+
+
+@router.post("/change-password", response_model=UserOut)
+def change_password(
+    payload: ChangePasswordRequest,
+    request: Request,
+    user: User = Depends(get_current_user),
+    session: Session = Depends(get_session),
+) -> UserOut:
+    """
+    Aendert das Passwort des eingeloggten Users.
+
+    Prueft zwingend das alte Passwort (Schutz gegen gekaperte Sessions),
+    setzt das neue als bcrypt-Hash und schreibt einen Audit-Eintrag.
+    Das Passwort selbst wird NIE geloggt.
+    """
+    if not verify_password(payload.old_password, user.password_hash):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Das aktuelle Passwort ist falsch.",
+        )
+    if len(payload.new_password) < 8:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Das neue Passwort muss mindestens 8 Zeichen lang sein.",
+        )
+    if payload.new_password == payload.old_password:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Das neue Passwort muss sich vom alten unterscheiden.",
+        )
+
+    user.password_hash = hash_password(payload.new_password)
+    session.add(user)
+    session.commit()
+    session.refresh(user)
+
+    ip = request.client.host if request.client else None
+    ua = request.headers.get("user-agent")
+    audit.log(
+        user_email=user.email,
+        user_role=user.role.value if hasattr(user.role, "value") else str(user.role),
+        action=AuditAction.PASSWORD_CHANGED,
+        ip_address=ip, user_agent=ua,
+    )
 
     return UserOut.from_user(user)

@@ -55,6 +55,21 @@ class APIClient:
             raise APIError(r.status_code, detail)
         return r.json()
 
+    def change_password(self, old_password: str, new_password: str) -> dict[str, Any]:
+        """Aendert das Passwort des eingeloggten Users (POST /auth/change-password)."""
+        try:
+            r = httpx.post(
+                f"{self.base_url}/auth/change-password",
+                headers=self._headers(),
+                json={"old_password": old_password, "new_password": new_password},
+                timeout=10,
+            )
+        except httpx.RequestError as e:
+            raise APIError(0, f"Backend nicht erreichbar: {e}") from e
+        if r.status_code >= 400:
+            raise APIError(r.status_code, _extract_detail(r))
+        return r.json()
+
     def acknowledge_disclosure(self) -> dict[str, Any]:
         """Bestaetigt den KI-Transparenzhinweis (POST /auth/ack-disclosure)."""
         try:

@@ -21,6 +21,7 @@ if str(_PROJECT_ROOT) not in sys.path:
 import streamlit as st
 
 from streamlit_app.api_client import APIClient, APIError
+from streamlit_app.passwords_util import neues_passwort
 from streamlit_app.config import (
     APP_ICON,
     APP_TITLE,
@@ -414,6 +415,44 @@ with st.sidebar:
     if st.button("🔄 Modelle aktualisieren", use_container_width=True):
         st.session_state.pop("_models_cache", None)
         st.rerun()
+
+    st.markdown("---")
+
+    with st.expander("🔑 Passwort ändern"):
+        if st.button("🎲 Sicheres Passwort vorschlagen", use_container_width=True,
+                     key="_pw_gen_btn"):
+            st.session_state["pw_vorschlag"] = neues_passwort()
+
+        if st.session_state.get("pw_vorschlag"):
+            st.code(st.session_state["pw_vorschlag"], language=None)
+            st.caption(
+                "⚠️ Bitte JETZT notieren — nach dem Ändern wird das Passwort "
+                "nicht mehr angezeigt. Tragen Sie es unten als neues Passwort ein."
+            )
+
+        with st.form("pw_change_form", clear_on_submit=False):
+            _pw_alt = st.text_input("Aktuelles Passwort", type="password", key="_pw_alt")
+            _pw_neu = st.text_input("Neues Passwort", type="password", key="_pw_neu")
+            _pw_neu2 = st.text_input("Neues Passwort wiederholen", type="password", key="_pw_neu2")
+            _pw_submit = st.form_submit_button("Passwort ändern", use_container_width=True)
+
+        if _pw_submit:
+            if not _pw_alt or not _pw_neu:
+                st.warning("Bitte alle Felder ausfüllen.")
+            elif _pw_neu != _pw_neu2:
+                st.warning("Die beiden neuen Passwörter stimmen nicht überein.")
+            elif len(_pw_neu) < 8:
+                st.warning("Das neue Passwort muss mindestens 8 Zeichen lang sein.")
+            elif _pw_neu == _pw_alt:
+                st.warning("Das neue Passwort muss sich vom alten unterscheiden.")
+            else:
+                try:
+                    client = APIClient(token=st.session_state["token"])
+                    client.change_password(_pw_alt, _pw_neu)
+                    st.session_state.pop("pw_vorschlag", None)
+                    st.success("Passwort geändert. Bitte beim nächsten Login das neue verwenden.")
+                except APIError as exc:
+                    st.error(f"Änderung fehlgeschlagen: {exc.detail}")
 
     st.markdown("---")
 
