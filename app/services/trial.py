@@ -77,6 +77,29 @@ def get_user_status(user) -> dict:
     get_status, nur die Quelle unterscheidet sich.
     """
     now = datetime.now(timezone.utc)
+
+    # Lizenz zuerst pruefen - und zwar VOR der None-Pruefung der Testphase
+    # weiter unten: ein frisch lizenzierter User, der sich noch nie
+    # eingeloggt hat, bekaeme sonst ACTIVE statt LICENSED.
+    lizenz_bis = getattr(user, "license_valid_until", None)
+    if lizenz_bis is not None:
+        lizenz_bis = _ensure_utc(lizenz_bis)
+        if lizenz_bis > now:
+            verbleibend = lizenz_bis - now
+            gestartet = getattr(user, "trial_started_at", None)
+            return {
+                "status": TrialStatus.LICENSED,
+                "days_remaining": verbleibend.days,
+                "hours_remaining": int(verbleibend.total_seconds() / 3600),
+                "installed_at": (
+                    _ensure_utc(gestartet).isoformat() if gestartet else None
+                ),
+                "expires_at": lizenz_bis.isoformat(),
+                "message": "Lizenzierte Version aktiv.",
+            }
+        # Abgelaufene Lizenz faellt bewusst auf die Trial-Logik zurueck,
+        # statt hart zu sperren - gleiches Verhalten wie EXPIRED heute.
+
     started = getattr(user, "trial_started_at", None)
 
     # Noch nie eingeloggt -> Testphase noch nicht angelaufen, volle Zeit.

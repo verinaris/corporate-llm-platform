@@ -77,7 +77,7 @@ def _run_lightweight_migrations() -> None:
         result = conn.exec_driver_sql("PRAGMA table_info(users)")
         user_cols = {row[1] for row in result}
 
-        for spalte in ("trial_started_at", "ai_disclosure_ack_at"):
+        for spalte in ("trial_started_at", "ai_disclosure_ack_at", "license_valid_until"):
             if spalte not in user_cols:
                 conn.exec_driver_sql(
                     f"ALTER TABLE users ADD COLUMN {spalte} DATETIME"

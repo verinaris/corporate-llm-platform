@@ -69,6 +69,12 @@ class User(SQLModel, table=True):
     # None = hat sich noch nie eingeloggt, Testphase noch nicht gestartet.
     trial_started_at: Optional[datetime] = Field(default=None)
 
+    # Lizenz pro User. Gesetzt = Vollnutzung bis zu diesem Datum,
+    # die Testphase spielt dann keine Rolle mehr. None = keine
+    # Lizenz, es gilt die Testphase. Bewusst KEINE Rollen-Ausnahme:
+    # auch ein Admin braucht ein gesetztes Datum.
+    license_valid_until: Optional[datetime] = Field(default=None)
+
     # KI-Transparenzhinweis (EU AI Act Art. 50), Variante A: wann der User
     # den Hinweis bestaetigt hat. None = noch nicht bestaetigt. Feld jetzt
     # angelegt, Bestaetigungs-Logik kommt spaeter (erspart 2. Migration).
