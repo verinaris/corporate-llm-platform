@@ -108,3 +108,29 @@ def _chunk_text(
             break
         start += step
     return chunks
+
+
+# ----------------------------------------------------------------------- #
+# Text-Eingang (Second Brain: Notizen, Mails, Webseiten, E-Books)
+# ----------------------------------------------------------------------- #
+
+def process_text(
+    text: str,
+    chunk_size: int = DEFAULT_CHUNK_SIZE,
+    chunk_overlap: int = DEFAULT_CHUNK_OVERLAP,
+) -> ProcessedDocument:
+    """
+    Zerlegt reinen Text in Chunks.
+
+    Text hat keine Seiten: page=0 bedeutet "keine Seitenangabe".
+    page_count ist 0, damit die Anzeige nicht "1 Seite" behauptet.
+    """
+    clean = _normalize_whitespace(text or "")
+    if not clean.strip():
+        return ProcessedDocument(page_count=0, chunks=[])
+
+    chunks = [
+        ProcessedChunk(text=chunk, page=0, chunk_index=i)
+        for i, chunk in enumerate(_chunk_text(clean, chunk_size, chunk_overlap))
+    ]
+    return ProcessedDocument(page_count=0, chunks=chunks)

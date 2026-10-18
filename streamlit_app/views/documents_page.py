@@ -412,7 +412,7 @@ def _render_documents_in_collection(
         cols = st.columns([4, 2, 2, 1])
         cols[0].markdown(f"**{doc['original_filename']}**")
         cols[1].caption(
-            f"{doc['page_count']} Seiten · {doc['chunk_count']} Chunks"
+            f"{str(doc['page_count']) + ' Seiten' if doc.get('page_count') else 'Text'} · {doc['chunk_count']} Chunks"
         )
         cols[2].caption(f"von {doc['uploaded_by']}")
         if can_delete:

@@ -3,6 +3,7 @@ Documents-API (Phase 3a–3c).
 
 Endpoints:
 - POST   /documents                      Upload (PDF) — Admin oder Compliance
+- POST   /documents/text                 Text-Eingang (Second Brain)
 - POST   /documents/stream               Upload mit NDJSON-Phasen-Status (3c)
 - GET    /documents                      Liste eigener/alle Dokumente
 - GET    /documents/{id}                 Einzelnes Dokument (Metadaten)
@@ -26,6 +27,7 @@ from typing import AsyncGenerator, Optional
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, status
 from fastapi.responses import FileResponse, StreamingResponse
+from pydantic import BaseModel, Field
 from sqlmodel import Session, select
 
 from app.auth.dependencies import (
@@ -43,7 +45,7 @@ from app.schemas_documents import (
     SearchHit,
     SearchResponse,
 )
-from app.services.document_processor import process_pdf
+from app.services.document_processor import process_pdf, process_text
 from app.services.document_store import get_document_store
 
 router = APIRouter(prefix="/documents", tags=["documents"])
@@ -230,6 +232,110 @@ async def upload_document(
             "page": c.page,
             "chunk_index": c.chunk_index,
             "uploaded_by": user.email,
+        }
+        for c in processed.chunks
+    ]
+    try:
+        store.add_chunks(collection, ids, texts, metadatas)
+    except Exception as exc:
+        session.delete(doc)
+        session.commit()
+        try:
+            stored_path.unlink(missing_ok=True)
+        except Exception:
+            pass
+        raise HTTPException(
+            status_code=500,
+            detail=f"Einbettung fehlgeschlagen: {exc}",
+        ) from exc
+
+    return DocumentOut.from_document(doc)
+
+
+# ----------------------------------------------------------------------- #
+# Text-Eingang (Second Brain: Notizen, Mails, Webseiten, E-Books)
+# ----------------------------------------------------------------------- #
+
+class TextDocumentIn(BaseModel):
+    """Reiner Text statt Datei. Die Einsammler wandeln ihre Quelle vorher um."""
+
+    title: str = Field(..., min_length=1, max_length=255)
+    text: str = Field(..., min_length=1)
+    collection: str
+    source: Optional[str] = Field(default=None, max_length=2000)
+    description: Optional[str] = None
+
+
+@router.post(
+    "/text",
+    response_model=DocumentOut,
+    status_code=status.HTTP_201_CREATED,
+    dependencies=[Depends(require_document_contributor)],
+)
+async def upload_text(
+    payload: TextDocumentIn,
+    user: User = Depends(get_current_user),
+    session: Session = Depends(get_session),
+) -> DocumentOut:
+    """Nimmt reinen Text an, zerlegt ihn und speichert die Embeddings."""
+    collection = _validate_collection_name(payload.collection)
+
+    text_bytes = payload.text.encode("utf-8")
+    if len(text_bytes) > MAX_UPLOAD_SIZE:
+        raise HTTPException(
+            status_code=413,
+            detail=f"Text zu groß (max. {MAX_UPLOAD_SIZE // (1024 * 1024)} MB).",
+        )
+
+    content_hash = _compute_hash(text_bytes)
+    existing = _find_duplicate(session, collection, content_hash)
+    if existing:
+        raise HTTPException(
+            status_code=409,
+            detail=_duplicate_detail_message(existing, collection),
+        )
+
+    processed = process_text(payload.text)
+    if not processed.chunks:
+        raise HTTPException(status_code=422, detail="Kein verwertbarer Text enthalten.")
+
+    stored_filename = f"{uuid.uuid4().hex}.txt"
+    stored_path = STORAGE_DIR / stored_filename
+    stored_path.write_bytes(text_bytes)
+
+    _upsert_collection_meta(
+        session=session,
+        name=collection,
+        user_email=user.email,
+        description=payload.description if payload.description else None,
+    )
+
+    doc = Document(
+        collection=collection,
+        original_filename=payload.title.strip(),
+        content_type="text/plain; charset=utf-8",
+        size_bytes=len(text_bytes),
+        page_count=0,
+        chunk_count=len(processed.chunks),
+        uploaded_by=user.email,
+        stored_path=str(stored_path),
+        content_hash=content_hash,
+    )
+    session.add(doc)
+    session.commit()
+    session.refresh(doc)
+
+    store = get_document_store()
+    ids = [f"doc-{doc.id}-chunk-{c.chunk_index}" for c in processed.chunks]
+    texts = [c.text for c in processed.chunks]
+    metadatas: list[dict] = [
+        {
+            "document_id": doc.id,
+            "filename": doc.original_filename,
+            "page": c.page,
+            "chunk_index": c.chunk_index,
+            "uploaded_by": user.email,
+            "source": payload.source or "",
         }
         for c in processed.chunks
     ]

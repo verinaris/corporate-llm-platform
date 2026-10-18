@@ -76,7 +76,7 @@ def build_rag_context(
         )
 
         context_blocks.append(
-            f"[Quelle {idx}: {filename}, Seite {page}]\n{text}"
+            f"[Quelle {idx}: {filename}{', Seite ' + str(page) if page else ''}]\n{text}"
         )
 
     context = "\n\n---\n\n".join(context_blocks)

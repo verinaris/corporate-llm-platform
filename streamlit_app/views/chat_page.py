@@ -141,7 +141,7 @@ def _render_sources(sources: list[dict], msg_idx: int = 0) -> None:
 
             cols = st.columns([5, 1])
             cols[0].markdown(
-                f"**{i}. {src['filename']}** · Seite {src['page']}"
+                f"**{i}. {src['filename']}**{' · Seite ' + str(src['page']) if src.get('page') else ''}"
             )
             cols[1].metric("Relevanz", f"{relevance_pct}%", label_visibility="collapsed")
             st.markdown(f"> _{src['excerpt']}_")
@@ -166,7 +166,7 @@ def _render_sources(sources: list[dict], msg_idx: int = 0) -> None:
                 if doc_id:
                     fetch_key = f"{key_base}-pdf-bytes"
                     if st.button(
-                        "📥 PDF holen",
+                        "📥 Original holen",
                         key=f"{key_base}-fetch-pdf",
                         help="Originaldatei vom Server abrufen",
                     ):
