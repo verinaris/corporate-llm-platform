@@ -550,6 +550,43 @@ class APIClient:
 
 
 
+    # ------------------------------------------------------------------ #
+    # Mandantentrennung: Rechte an Sammlungen (Backend erlaubt nur Admin)
+    # ------------------------------------------------------------------ #
+    def _send(self, method: str, path: str, payload: dict[str, Any] | None = None,
+              timeout: int = 10) -> Any:
+        try:
+            r = httpx.request(
+                method,
+                f"{self.base_url}{path}",
+                json=payload,
+                headers=self._headers(),
+                timeout=timeout,
+            )
+        except httpx.RequestError as e:
+            raise APIError(0, f"Backend nicht erreichbar: {e}") from e
+        if r.status_code >= 400:
+            raise APIError(r.status_code, _extract_detail(r))
+        return r.json()
+
+    def list_collection_access(self) -> list[dict[str, Any]]:
+        return self._get("/admin/collections")  # type: ignore[return-value]
+
+    def grant_collection_member(self, name: str, email: str, level: str) -> dict[str, Any]:
+        return self._send("POST", f"/admin/collections/{name}/members",
+                          {"email": email, "level": level})
+
+    def revoke_collection_member(self, name: str, email: str) -> dict[str, Any]:
+        from urllib.parse import quote
+        return self._send("DELETE", f"/admin/collections/{name}/members/{quote(email)}")
+
+    def set_collection_visibility(self, name: str, open_for_all: bool) -> dict[str, Any]:
+        return self._send("PUT", f"/admin/collections/{name}/visibility",
+                          {"open_for_all": open_for_all})
+
+    def transfer_collection_owner(self, name: str, email: str) -> dict[str, Any]:
+        return self._send("PUT", f"/admin/collections/{name}/owner", {"email": email})
+
     def get_my_trial_status(self) -> dict[str, Any]:
         """Trial-Status des eingeloggten Users (/trial/me, braucht Token)."""
         return self._get("/trial/me", timeout=5)
