@@ -243,6 +243,7 @@ class AuditAction(str, Enum):
     COLLECTION_ACCESS_GRANTED = "collection_access_granted"
     COLLECTION_ACCESS_REVOKED = "collection_access_revoked"
     COLLECTION_VISIBILITY_CHANGED = "collection_visibility_changed"
+    COLLECTION_OWNER_CHANGED = "collection_owner_changed"
 
     # Chat / LLM
     CHAT_QUERY = "chat_query"

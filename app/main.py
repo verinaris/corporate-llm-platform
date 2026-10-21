@@ -108,6 +108,8 @@ def create_app() -> FastAPI:
     app.include_router(models_api.router)
     app.include_router(businessplan_api.router)
     app.include_router(admin_api.router)
+    from app.api import collection_admin as collection_admin_api
+    app.include_router(collection_admin_api.router)
 
     return app
 
