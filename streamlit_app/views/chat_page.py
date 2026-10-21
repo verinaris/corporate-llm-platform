@@ -46,6 +46,13 @@ def _ensure_state() -> None:
 
 
 def _handle_user_message(prompt: str) -> None:
+    if st.session_state.get("model_blocked") or not st.session_state.get("selected_model_id"):
+        st.error(
+            "Kein Modell gewählt. Die Nachricht wurde nicht gesendet "
+            "(siehe Hinweis in der Seitenleiste)."
+        )
+        return
+
     st.session_state["messages"].append({"role": "user", "content": prompt})
     with st.chat_message("user"):
         st.markdown(prompt)
@@ -53,10 +60,8 @@ def _handle_user_message(prompt: str) -> None:
     token = st.session_state.get("token")
     model_label = st.session_state.get("selected_model_label", DEFAULT_MODEL_LABEL)
     # Bevorzugt: id aus app.py (dynamisch geladen). Fallback: statisches Mapping.
-    model_id = (
-        st.session_state.get("selected_model_id")
-        or AVAILABLE_MODELS.get(model_label)
-    )
+    # Kein Rückfall auf eine statische Liste: das könnte ein Cloud-Modell sein.
+    model_id = st.session_state.get("selected_model_id")
 
     active_collection = st.session_state.get("active_collection")
     use_rag = active_collection and active_collection != "— keine —"

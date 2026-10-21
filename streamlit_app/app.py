@@ -315,9 +315,10 @@ def _fetch_models() -> dict[str, str]:
     try:
         data = APIClient(token=st.session_state["token"]).list_available_models()
     except APIError:
-        # Backend down? → Fallback auf statisches Mapping
-        st.session_state["_models_cache"] = dict(AVAILABLE_MODELS)
-        return st.session_state["_models_cache"]
+        # Backend down? -> leere Liste, KEIN statisches Mapping: das enthält
+        # Cloud-Modelle und wäre in regulierten Branchen eine falsche Anzeige.
+        # Nicht cachen, damit der nächste Lauf es erneut versucht.
+        return {}
 
     result: dict[str, str] = {}
     for provider in data.get("providers", []):
@@ -327,8 +328,7 @@ def _fetch_models() -> dict[str, str]:
             label = m.get("label") or m.get("id")
             result[label] = m["id"]
 
-    if not result:
-        result = dict(AVAILABLE_MODELS)
+    # Leere Liste bleibt leer (kein Rückfall auf Cloud-Modelle).
 
     st.session_state["_models_cache"] = result
     return result
@@ -428,13 +428,44 @@ with st.sidebar:
     st.markdown("**🤖 Modell**")
     model_dict = _fetch_models()  # label -> model_id
 
-    if not model_dict:
-        st.warning("Keine Modelle verfügbar (Backend nicht erreichbar?)")
-        selected = DEFAULT_MODEL_LABEL
+    def _is_local_id(model_id):
+        return bool(model_id) and (
+            model_id.lower().startswith(("llama", "qwen", "mistral", "phi", "gemma"))
+            or ":" in model_id
+        )
+
+    labels = list(model_dict.keys()) if model_dict else []
+    prev_label = st.session_state.get("selected_model_label")
+    lokal_verloren = bool(
+        prev_label
+        and prev_label not in labels
+        and st.session_state.get("selected_model_is_local")
+    )
+
+    if lokal_verloren:
+        # Datenresidenz: NIE stillschweigend von lokal auf Cloud wechseln.
+        st.error(
+            f"Das lokale Modell „{prev_label}“ ist nicht erreichbar (läuft Ollama?). "
+            "Es wird kein anderes Modell ersatzweise verwendet."
+        )
+        st.session_state["model_blocked"] = True
+        st.session_state["selected_model_id"] = None
+        if not labels:
+            st.caption(
+                "Keine andere Auswahl verfügbar. Bitte Ollama starten und "
+                "„🔄 Modelle aktualisieren“ klicken."
+            )
+        elif st.button("Anderes Modell bewusst wählen", use_container_width=True):
+            st.session_state["selected_model_is_local"] = False
+            st.session_state.pop("selected_model_label", None)
+            st.session_state["model_blocked"] = False
+            st.rerun()
+    elif not model_dict:
+        st.warning("Keine Modelle verfügbar (Backend oder Ollama nicht erreichbar?)")
+        st.session_state["model_blocked"] = True
+        st.session_state["selected_model_id"] = None
     else:
-        # Default-Index ermitteln
-        labels = list(model_dict.keys())
-        prev_label = st.session_state.get("selected_model_label")
+        st.session_state["model_blocked"] = False
         if prev_label in labels:
             default_idx = labels.index(prev_label)
         else:
@@ -454,15 +485,12 @@ with st.sidebar:
                 "0$ pro Token, aber langsamer und meist schwächer."
             ),
         )
-        # Banner unter dem Selector wenn lokales Modell
         selected_id = model_dict[selected]
-        if any(selected_id.lower().startswith(p) for p in (
-            "llama", "qwen", "mistral", "phi", "gemma"
-        )) or ":" in selected_id:
+        if _is_local_id(selected_id):
             st.caption("💻 **Lokales Modell** — Ihre Daten verlassen diese Installation nicht")
-
-    st.session_state["selected_model_label"] = selected
-    st.session_state["selected_model_id"] = model_dict.get(selected) if model_dict else None
+        st.session_state["selected_model_label"] = selected
+        st.session_state["selected_model_id"] = selected_id
+        st.session_state["selected_model_is_local"] = _is_local_id(selected_id)
 
     if st.button("🔄 Modelle aktualisieren", use_container_width=True):
         st.session_state.pop("_models_cache", None)
