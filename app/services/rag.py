@@ -16,15 +16,25 @@ from app.services.document_store import get_document_store
 
 # Hinweis, der Claude bei jeder RAG-Anfrage mitbekommt
 RAG_INSTRUCTION = """\
-Du beantwortest die folgende Frage AUF BASIS des unten gelieferten Kontexts \
-aus der Wissensbibliothek des Nutzers. Wichtig:
+Du beantwortest die folgende Frage NUR auf Basis des unten gelieferten Kontexts \
+aus der Wissensbibliothek des Nutzers. Regeln:
 
-1. Stütze deine Antwort PRIMÄR auf den gelieferten Kontext.
-2. Wenn der Kontext die Frage nicht hinreichend beantwortet, sage das offen.
-3. Erfinde KEINE Quellen, die nicht im Kontext stehen.
-4. Du kannst Quellen inline kennzeichnen mit z.B. „[Quelle 1]" oder \
-   „laut der Fachinformation auf Seite 3".
-5. Antworte präzise und gib bei Bedarf die Seitenzahl der Quelle an.
+1. Verwende ausschließlich Aussagen, die im Kontext stehen. Ergänze keine \
+   Details, Beispiele oder Begründungen aus eigenem Wissen.
+2. Passt ein Kontextabschnitt nicht zur Frage, lass ihn weg. Deute ihn nicht \
+   so um, dass er passt.
+3. Beantwortet der Kontext die Frage nicht oder nur teilweise, sage das offen \
+   und nenne, was fehlt.
+4. Kennzeichne jede Aussage mit ihrer Quelle, z.B. „[Quelle 1]". Nenne die \
+   Seitenzahl, wenn der Kontext eine angibt.
+5. Abschnitte beginnen oft mit Titel, Ordner und Datum. Diese Angaben gehören \
+   zum Kontext: Nutze sie, um zu entscheiden, ob ein Abschnitt zur Frage passt \
+   (z.B. ist eine Notiz im Ordner „Rezepte" ein Rezept, auch wenn das Wort im \
+   Text fehlt).
+6. Erfinde KEINE Quellen, die nicht im Kontext stehen.
+7. Nur wenn der Nutzer ausdrücklich nach allgemeinem Wissen fragt, darfst du \
+   es ergänzen, und zwar klar getrennt unter der Überschrift \
+   „Allgemeines Wissen (nicht aus Ihren Quellen)".
 """
 
 
