@@ -28,6 +28,7 @@ from app.models import AuditAction, User
 from app.pricing import calculate_cost
 from app.schemas import ChatMessage, ChatRequest, ChatResponse, UsageInfo
 from app.services import audit, token_tracker
+from app.services.collection_access import require_collection_access
 from app.services.rag import (
     build_rag_context,
     extract_last_user_query,
@@ -125,6 +126,13 @@ async def chat(
 
     # --- RAG: Wenn Collection gesetzt, Kontext aus Vektor-DB einspielen ---
     sources_for_response = []
+    # --- Mandantentrennung (harte Kontrolle) -------------------------- #
+    # Wie bei der Datenresidenz: ein gefiltertes Dropdown ist Kosmetik.
+    # Ohne Leserecht gibt es 403 + Audit, keinen stillen Chat ohne Kontext.
+    # Steht bewusst VOR dem try/except unten, das RAG-Fehler verschluckt.
+    if request.collection:
+        require_collection_access(session, current_user, request.collection, need="read")
+
     if request.collection:
         query = extract_last_user_query(messages_for_llm)
         if query:
