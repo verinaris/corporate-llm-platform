@@ -47,6 +47,11 @@ from app.schemas_documents import (
 )
 from app.services.document_processor import process_pdf, process_text
 from app.services.document_store import get_document_store
+from app.services.collection_access import (
+    readable_collections,
+    require_collection_access,
+    require_upload_target,
+)
 
 router = APIRouter(prefix="/documents", tags=["documents"])
 
@@ -158,6 +163,7 @@ async def upload_document(
 ) -> DocumentOut:
     """Lädt ein PDF hoch, zerlegt es und speichert die Embeddings."""
     collection = _validate_collection_name(collection)
+    require_upload_target(session, user, collection)
 
     if not (file.content_type or "").startswith("application/pdf"):
         raise HTTPException(
@@ -279,6 +285,7 @@ async def upload_text(
 ) -> DocumentOut:
     """Nimmt reinen Text an, zerlegt ihn und speichert die Embeddings."""
     collection = _validate_collection_name(payload.collection)
+    require_upload_target(session, user, collection)
 
     text_bytes = payload.text.encode("utf-8")
     if len(text_bytes) > MAX_UPLOAD_SIZE:
@@ -388,6 +395,7 @@ async def upload_document_stream(
     Streamlit liest die Zeilen und aktualisiert den Phasen-Status live.
     """
     collection_validated = _validate_collection_name(collection)
+    require_upload_target(session, user, collection_validated)
 
     if not (file.content_type or "").startswith("application/pdf"):
         raise HTTPException(400, detail="Nur PDF-Dateien werden unterstützt.")
@@ -579,7 +587,15 @@ def list_documents(
     """Alle Dokumente (optional nach Sammlung gefiltert)."""
     query = select(Document)
     if collection:
-        query = query.where(Document.collection == _validate_collection_name(collection))
+        name = _validate_collection_name(collection)
+        require_collection_access(session, user, name, need="read")
+        query = query.where(Document.collection == name)
+    else:
+        # Mandantentrennung: nur Dokumente aus lesbaren Sammlungen
+        erlaubt = readable_collections(session, user)
+        if not erlaubt:
+            return []
+        query = query.where(Document.collection.in_(erlaubt))
     docs = session.exec(query).all()
     return [DocumentOut.from_document(d) for d in docs]
 
@@ -602,7 +618,8 @@ def list_collections(
     meta_rows = session.exec(select(DocumentCollection)).all()
     meta_by_name = {m.name: m for m in meta_rows}
 
-    all_names = set(by_coll.keys()) | set(meta_by_name.keys())
+    # Mandantentrennung: nur Sammlungen, die der User lesen darf
+    all_names = readable_collections(session, user)
 
     result: list[CollectionStats] = []
     for name in sorted(all_names):
@@ -632,9 +649,8 @@ def get_collection(
     session: Session = Depends(get_session),
 ) -> CollectionInfo:
     name = _validate_collection_name(name)
+    require_collection_access(session, user, name, need="read")
     meta = session.get(DocumentCollection, name)
-    if not meta:
-        return CollectionInfo(name=name)
     return CollectionInfo.from_db(meta)
 
 
@@ -653,6 +669,7 @@ def create_collection(
 ) -> CollectionInfo:
     """Sammlung manuell anlegen (für leere Sammlungen oder Vorab-Setup)."""
     name = _validate_collection_name(name)
+    require_upload_target(session, user, name)
     tag_list = [t.strip() for t in (tags or "").split(",") if t.strip()]
     meta = _upsert_collection_meta(
         session=session,
@@ -676,6 +693,7 @@ def update_collection(
     session: Session = Depends(get_session),
 ) -> CollectionInfo:
     name = _validate_collection_name(name)
+    require_collection_access(session, user, name, need="maintain")
     meta = _upsert_collection_meta(
         session=session,
         name=name,
@@ -700,6 +718,7 @@ def search_documents(
 ) -> SearchResponse:
     """Vektor-Suche in einer Sammlung (Test-Endpoint)."""
     collection = _validate_collection_name(collection)
+    require_collection_access(session, user, collection, need="read")
     store = get_document_store()
     raw_hits = store.query(collection, q, n_results=limit)
 
@@ -722,15 +741,31 @@ def search_documents(
 # Einzelnes Dokument + File-Download (Phase 3c)
 # ----------------------------------------------------------------------- #
 
+def _doc_with_access(session: Session, user: User, document_id: int, need: str) -> Document:
+    """
+    Dokument laden und Zugriff pruefen (Mandantentrennung).
+
+    Ohne Recht kommt 404 wie bei "gibt es nicht", damit sich ueber
+    Dokument-IDs nicht abtasten laesst, was existiert. Das Audit
+    (COLLECTION_ACCESS_DENIED) schreibt require_collection_access trotzdem.
+    """
+    doc = session.get(Document, document_id)
+    if not doc:
+        raise HTTPException(404, detail="Dokument nicht gefunden")
+    try:
+        require_collection_access(session, user, doc.collection, need=need)
+    except HTTPException:
+        raise HTTPException(404, detail="Dokument nicht gefunden") from None
+    return doc
+
+
 @router.get("/{document_id}", response_model=DocumentOut)
 def get_document(
     document_id: int,
     user: User = Depends(get_current_user),
     session: Session = Depends(get_session),
 ) -> DocumentOut:
-    doc = session.get(Document, document_id)
-    if not doc:
-        raise HTTPException(404, detail="Dokument nicht gefunden")
+    doc = _doc_with_access(session, user, document_id, "read")
     return DocumentOut.from_document(doc)
 
 
@@ -740,10 +775,8 @@ def get_document_file(
     user: User = Depends(get_current_user),
     session: Session = Depends(get_session),
 ) -> FileResponse:
-    """Liefert die Original-PDF zurück (für Vorschau/Download)."""
-    doc = session.get(Document, document_id)
-    if not doc:
-        raise HTTPException(404, detail="Dokument nicht gefunden")
+    """Liefert die Original-Datei zurück (für Vorschau/Download)."""
+    doc = _doc_with_access(session, user, document_id, "read")
     if not doc.stored_path:
         raise HTTPException(410, detail="Datei nicht mehr verfügbar")
     file_path = Path(doc.stored_path)
@@ -764,12 +797,11 @@ def get_document_file(
 )
 def delete_document(
     document_id: int,
+    user: User = Depends(get_current_user),
     session: Session = Depends(get_session),
 ) -> DocumentOut:
     """Löscht das Dokument: DB-Eintrag, ChromaDB-Chunks, Original-Datei."""
-    doc = session.get(Document, document_id)
-    if not doc:
-        raise HTTPException(404, detail="Dokument nicht gefunden")
+    doc = _doc_with_access(session, user, document_id, "maintain")
 
     try:
         get_document_store().delete_by_document_id(doc.collection, doc.id or 0)

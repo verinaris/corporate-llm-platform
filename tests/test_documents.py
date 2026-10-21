@@ -216,15 +216,32 @@ def test_update_collection(client, admin_token):
     assert sorted(body["tags"]) == ["a", "b"]
 
 
-def test_get_collection_returns_default_for_unknown(client, user_token):
-    """Unbekannte Sammlung liefert Default-Info, kein 404."""
+def test_get_collection_unknown_is_403(client, user_token):
+    """Unbekannte Sammlung: 403 wie bei gesperrter (Mandantentrennung, keine Aufzählung)."""
     r = client.get(
         "/documents/collections/voellig-neue-sammlung",
         headers={"Authorization": f"Bearer {user_token}"},
     )
-    assert r.status_code == 200
-    assert r.json()["name"] == "voellig-neue-sammlung"
-    assert r.json()["description"] is None
+    assert r.status_code == 403
+
+
+def test_fremde_sammlung_unsichtbar_und_gesperrt(client, admin_token, user_token):
+    """Admin legt Sammlung an: er sieht sie, ein normaler User weder in der Liste noch per Direktzugriff."""
+    admin = {"Authorization": f"Bearer {admin_token}"}
+    user = {"Authorization": f"Bearer {user_token}"}
+
+    r = client.post("/documents/collections", headers=admin, data={"name": "akte-geheim"})
+    assert r.status_code == 201
+
+    admin_namen = [c["name"] for c in client.get("/documents/collections", headers=admin).json()]
+    assert "akte-geheim" in admin_namen
+
+    user_namen = [c["name"] for c in client.get("/documents/collections", headers=user).json()]
+    assert "akte-geheim" not in user_namen
+
+    assert client.get("/documents/collections/akte-geheim", headers=user).status_code == 403
+    r = client.get("/documents/search", params={"q": "x", "collection": "akte-geheim"}, headers=user)
+    assert r.status_code == 403
 
 
 def test_list_collections_includes_description(client, admin_token):
