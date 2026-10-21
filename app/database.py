@@ -111,6 +111,35 @@ def _run_lightweight_migrations() -> None:
                 conn.commit()
                 print(f"[Migration] audit_log.{spalte} hinzugefügt")
 
+    # --- Mandantentrennung: Sammlung fuer alle lesbar? (Standard: nein) ---
+    with engine.connect() as conn:
+        result = conn.exec_driver_sql("PRAGMA table_info(document_collections)")
+        coll_cols = {row[1] for row in result}
+        if coll_cols and "open_for_all" not in coll_cols:
+            conn.exec_driver_sql(
+                "ALTER TABLE document_collections ADD COLUMN open_for_all BOOLEAN DEFAULT 0"
+            )
+            conn.commit()
+            print("[Migration] document_collections.open_for_all hinzugefügt")
+
+        # Sammlungen, die nur als Name an Dokumenten haengen, bekommen einen
+        # Besitzer (wer dort zuerst hochgeladen hat). Sonst waeren sie nach
+        # der Mandantentrennung fuer niemanden mehr erreichbar.
+        res = conn.exec_driver_sql(
+            "INSERT INTO document_collections "
+            "(name, tags, created_by, created_at, updated_at, open_for_all) "
+            "SELECT d.collection, '', "
+            "(SELECT d2.uploaded_by FROM documents d2 WHERE d2.collection = d.collection "
+            " ORDER BY d2.uploaded_at, d2.id LIMIT 1), "
+            "CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 0 "
+            "FROM documents d "
+            "WHERE d.collection NOT IN (SELECT name FROM document_collections) "
+            "GROUP BY d.collection"
+        )
+        if res.rowcount:
+            conn.commit()
+            print(f"[Migration] {res.rowcount} Sammlung(en) ohne Metadaten nachgetragen")
+
     # Backfill: bestehende Dokumente bekommen ihren Hash nachträglich
     _backfill_content_hashes()
 

@@ -8,6 +8,7 @@ from datetime import datetime, timedelta, timezone
 from enum import Enum
 from typing import Optional
 
+from sqlalchemy import UniqueConstraint
 from sqlmodel import Field, SQLModel
 
 
@@ -164,6 +165,8 @@ class DocumentCollection(SQLModel, table=True):
     description: Optional[str] = Field(default=None)
     tags: str = Field(default="")  # komma-separiert
     created_by: str = Field(index=True)
+    # Mandantentrennung: Standard geschlossen, nur Besitzer + Mitglieder
+    open_for_all: bool = Field(default=False)
     created_at: datetime = Field(
         default_factory=lambda: datetime.now(timezone.utc)
     )
@@ -175,6 +178,39 @@ class DocumentCollection(SQLModel, table=True):
 # ============================================================ #
 # Audit-Log (Phase 6a — Compliance)
 # ============================================================ #
+
+class CollectionAccessLevel(str, Enum):
+    """Stufe eines Mitglieds in einer Sammlung."""
+
+    READ = "read"          # lesen: im Chat suchen, Dokumente ansehen
+    MAINTAIN = "maintain"  # pflegen: zusaetzlich hochladen, aendern, loeschen
+
+
+class CollectionMember(SQLModel, table=True):
+    """
+    Wer darf welche Sammlung lesen oder pflegen? (Mandantentrennung)
+
+    Der Besitzer (DocumentCollection.created_by) braucht keinen Eintrag.
+    Admin und Compliance-Officer haben KEIN automatisches Leserecht:
+    verwalten duerfen ist nicht lesen duerfen (gleiches Muster wie
+    can_read_audit vs. can_approve).
+
+    Analogie: die Schluesselliste am Empfang -- wer hat fuer welchen Raum
+    einen Schluessel, und darf er nur hinein oder auch umraeumen.
+    """
+
+    __tablename__ = "collection_members"
+    __table_args__ = (UniqueConstraint("collection", "user_id"),)
+
+    id: Optional[int] = Field(default=None, primary_key=True)
+    collection: str = Field(foreign_key="document_collections.name", index=True)
+    user_id: int = Field(foreign_key="users.id", index=True)
+    level: CollectionAccessLevel = Field(default=CollectionAccessLevel.READ)
+    granted_by: str
+    granted_at: datetime = Field(
+        default_factory=lambda: datetime.now(timezone.utc)
+    )
+
 
 class AuditAction(str, Enum):
     """
@@ -201,6 +237,12 @@ class AuditAction(str, Enum):
     DOCUMENT_DELETED = "document_deleted"
     COLLECTION_CREATED = "collection_created"
     COLLECTION_DELETED = "collection_deleted"
+
+    # Mandantentrennung
+    COLLECTION_ACCESS_DENIED = "collection_access_denied"
+    COLLECTION_ACCESS_GRANTED = "collection_access_granted"
+    COLLECTION_ACCESS_REVOKED = "collection_access_revoked"
+    COLLECTION_VISIBILITY_CHANGED = "collection_visibility_changed"
 
     # Chat / LLM
     CHAT_QUERY = "chat_query"
