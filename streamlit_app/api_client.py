@@ -498,6 +498,10 @@ class APIClient:
             raise APIError(r.status_code, _extract_detail(r))
         return r.json()
 
+    def reset_user_password(self, user_id: int) -> dict[str, Any]:
+        """Neues Erstpasswort (POST /users/{id}/reset-password). Nur einmal sichtbar."""
+        return self._post(f"/users/{user_id}/reset-password", {})
+
     def create_user(
         self,
         email: str,

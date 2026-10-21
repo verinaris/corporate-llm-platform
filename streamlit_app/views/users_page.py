@@ -81,6 +81,8 @@ def _render_liste(client: APIClient, user: dict) -> None:
 
     # --- User aktivieren / deaktivieren ------------------------------- #
     st.markdown("---")
+    if "_users_msg" in st.session_state:
+        st.success(st.session_state.pop("_users_msg"))
     st.markdown("**User aktivieren / deaktivieren**")
 
     eigene_email = user.get("email", "")
@@ -113,10 +115,37 @@ def _render_liste(client: APIClient, user: dict) -> None:
                  disabled=not bestaetigt, use_container_width=True):
         try:
             client.set_user_active(gewaehlt["id"], ziel)
-            st.success(f"'{gewaehlt.get('email')}' wurde {aktion[:-2]}iert.")
+            st.session_state["_users_msg"] = (
+                f"'{gewaehlt.get('email')}' wurde {'deaktiviert' if ist_aktiv else 'aktiviert'}."
+            )
             st.rerun()
         except APIError as exc:
             st.error(f"Konnte Status nicht aendern: {exc.detail}")
+
+    # ---- Passwort zuruecksetzen (fuer den oben gewaehlten User) ----
+    st.markdown("---")
+    st.markdown("**Passwort zurücksetzen**")
+    st.caption(
+        "Erzeugt ein neues Erstpasswort für den oben gewählten User. Es wird nur "
+        "einmal angezeigt; beim nächsten Login muss der User es ändern."
+    )
+    if not ist_aktiv:
+        st.caption("Inaktive User bitte zuerst aktivieren.")
+    reset_ok = st.checkbox(
+        f"Ja, Passwort von '{gewaehlt.get('email')}' zurücksetzen.",
+        key="_reset_confirm",
+    )
+    if st.button("🔑 Passwort zurücksetzen", disabled=not (reset_ok and ist_aktiv),
+                 use_container_width=True):
+        try:
+            res = client.reset_user_password(gewaehlt["id"])
+            st.success(
+                f"Neues Erstpasswort für {gewaehlt.get('email')}. Nur jetzt sichtbar, "
+                "bitte auf sicherem Weg weitergeben:"
+            )
+            st.code(res["temporary_password"], language=None)
+        except APIError as exc:
+            st.error(f"Zurücksetzen fehlgeschlagen: {exc.detail}")
 
 
 def _render_neu(client: APIClient) -> None:

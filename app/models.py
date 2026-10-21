@@ -230,6 +230,7 @@ class AuditAction(str, Enum):
     USER_CREATED = "user_created"
     USER_UPDATED = "user_updated"
     USER_DELETED = "user_deleted"
+    PASSWORD_RESET_BY_ADMIN = "password_reset_by_admin"  # pragma: allowlist secret
     BRANCH_CHANGED = "branch_changed"
 
     # Daten-Operationen
