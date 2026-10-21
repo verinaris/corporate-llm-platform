@@ -25,6 +25,7 @@ from app.services.document_processor import (
     DEFAULT_CHUNK_OVERLAP,
 )
 from app.services.document_store import get_document_store
+from app.services.collection_access import tool_claim_upload_target, tool_has_access
 from app.services.web_fetch import (
     fetch_clean_text,
     LoginRequiredError,
@@ -70,6 +71,10 @@ class RegulationImportTool(AutomationTool):
         collection = (params.get("collection") or "").strip()
         if not url or not collection:
             return {"draft": None, "meta": {"error": "url und collection sind Pflicht."}}
+
+        # Mandantentrennung: nur pruefen, nichts anlegen (generate bleibt nebenwirkungsfrei)
+        if not tool_has_access(user_id, collection, "maintain", allow_new=True):
+            return {"draft": None, "meta": {"error": f"Kein Zugriff auf die Sammlung '{collection}'."}}
 
         # 1. Quelle holen -- Login/Fehler kommen als klare Meldung zurueck.
         try:
@@ -136,6 +141,11 @@ class RegulationImportTool(AutomationTool):
             fetched = fetch_clean_text(url)
         except (LoginRequiredError, WebFetchError) as exc:
             return {"ok": False, "error": str(exc), "url": url}
+
+        # Mandantentrennung: erneut pruefen und bei neuer Sammlung den Eintrag
+        # mit Besitzer anlegen -- sonst waere die Sammlung sofort verwaist.
+        if not tool_claim_upload_target(user_id, collection):
+            return {"ok": False, "error": f"Kein Zugriff auf die Sammlung '{collection}'.", "url": url}
 
         chunks = _chunk_text(fetched["text"], DEFAULT_CHUNK_SIZE, DEFAULT_CHUNK_OVERLAP)
         if not chunks:

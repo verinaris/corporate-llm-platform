@@ -126,3 +126,44 @@ def has_collection_access(
         return True
     _log_denied(user, name, need)
     return False
+
+
+# ----------------------------------------------------------------------- #
+# Varianten fuer Tools (eigene DB-Sitzung, keine HTTP-Fehler)
+# ----------------------------------------------------------------------- #
+
+def tool_has_access(user_id: Optional[int], name: str, need: str = "read",
+                    allow_new: bool = False) -> bool:
+    """
+    Pruefung fuer Tools. allow_new=True: eine noch nicht existierende
+    Sammlung gilt als erlaubt (der Aufrufer wird spaeter ihr Besitzer).
+    Legt NICHTS an (fuer nebenwirkungsfreie Schritte wie generate()).
+    """
+    from app.database import engine  # spaet importiert: keine Zirkel, im Test austauschbar
+
+    with Session(engine) as s:
+        if allow_new and s.get(DocumentCollection, name) is None:
+            return s.get(User, user_id) is not None if user_id else False
+        return has_collection_access(s, user_id, name, need)
+
+
+def tool_claim_upload_target(user_id: Optional[int], name: str) -> bool:
+    """
+    Wie require_upload_target, aber fuer Tools: neue Sammlung wird mit dem
+    Aufrufer als Besitzer angelegt, bestehende braucht 'maintain'.
+    Ohne diesen Eintrag waere eine per Tool angelegte Sammlung verwaist.
+    """
+    from app.database import engine
+
+    with Session(engine) as s:
+        user = s.get(User, user_id) if user_id else None
+        if user is None:
+            return False
+        if s.get(DocumentCollection, name) is None:
+            s.add(DocumentCollection(name=name, created_by=user.email))
+            s.commit()
+            return True
+        if can_maintain_collection(get_collection_level(s, user, name)):
+            return True
+        _log_denied(user, name, "maintain")
+        return False

@@ -10,6 +10,7 @@ Wrappt den existierenden RAG-Service (build_rag_context).
 from typing import Any
 
 from app.services.rag import build_rag_context
+from app.services.collection_access import tool_has_access
 from app.tools.base import BaseTool
 
 
@@ -85,6 +86,18 @@ class SearchDocumentsTool(BaseTool):
         query = params["query"]
         collection = params["collection"]
         top_k = params.get("top_k", 4)
+
+        # Mandantentrennung: ohne Leserecht eine klare Ablehnung statt leerer
+        # Treffer -- sonst behauptet das Modell "dazu steht nichts in den Dokumenten".
+        if not tool_has_access(user_id, collection, "read"):
+            return {
+                "query": query,
+                "collection": collection,
+                "results": [],
+                "summary": f"Kein Zugriff auf die Sammlung '{collection}'.",
+                "total_results": 0,
+                "error": "access_denied",
+            }
 
         # Bestehenden RAG-Service nutzen
         context_block, sources = build_rag_context(
