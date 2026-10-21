@@ -48,3 +48,55 @@ def can_read_audit(role) -> bool:
 def can_approve(role) -> bool:
     """Darf diese Rolle Compliance-/Automations-Antraege freigeben?"""
     return _role_str(role) in _APPROVERS
+
+
+# ----------------------------------------------------------------------- #
+# Mandantentrennung: Zugriff auf Sammlungen
+# ----------------------------------------------------------------------- #
+#
+# WICHTIG: Fuers LESEN zaehlt NICHT die Rolle, sondern nur die Beziehung zur
+# Sammlung (Besitzer, Mitglied, fuer alle lesbar). Admin und Compliance-Officer
+# verwalten Rechte, lesen aber keine fremden Inhalte -- gleiches Muster wie
+# can_read_audit vs. can_approve: verwalten duerfen ist nicht lesen duerfen.
+#
+# Analogie: Der Hausmeister hat den Generalschluessel-Kasten, darf aber nicht
+# in die Wohnungen. Will er im Notfall hinein, traegt er sich sichtbar ein.
+
+# Rangfolge der Stufen. "owner" ist keine gespeicherte Stufe, sondern ergibt
+# sich aus DocumentCollection.created_by.
+_COLLECTION_LEVEL_RANK: dict[str, int] = {"read": 1, "maintain": 2, "owner": 3}
+
+# Wer darf Rechte an Sammlungen vergeben/entziehen und "fuer alle" schalten?
+_COLLECTION_ACCESS_MANAGERS: frozenset[str] = frozenset({"admin"})
+
+
+def collection_level(user_email, owner_email, member_level, open_for_all) -> str | None:
+    """
+    Ermittelt die Stufe eines Users fuer eine Sammlung.
+
+    Returns "owner", "maintain", "read" oder None (kein Zugriff).
+    Die hoechste zutreffende Stufe gewinnt.
+    """
+    if user_email and owner_email and user_email.strip().lower() == owner_email.strip().lower():
+        return "owner"
+    level = _role_str(member_level) if member_level else None
+    if level in ("read", "maintain"):
+        return level
+    if open_for_all:
+        return "read"
+    return None
+
+
+def can_read_collection(level) -> bool:
+    """Darf in der Sammlung gesucht / gelesen werden?"""
+    return level in _COLLECTION_LEVEL_RANK
+
+
+def can_maintain_collection(level) -> bool:
+    """Darf in der Sammlung hochgeladen, geaendert, geloescht werden?"""
+    return _COLLECTION_LEVEL_RANK.get(level or "", 0) >= _COLLECTION_LEVEL_RANK["maintain"]
+
+
+def can_manage_collection_access(role) -> bool:
+    """Darf diese Rolle Rechte an Sammlungen vergeben/entziehen?"""
+    return _role_str(role) in _COLLECTION_ACCESS_MANAGERS
