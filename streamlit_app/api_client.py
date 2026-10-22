@@ -591,6 +591,18 @@ class APIClient:
     def transfer_collection_owner(self, name: str, email: str) -> dict[str, Any]:
         return self._send("PUT", f"/admin/collections/{name}/owner", {"email": email})
 
+    # ------------------------------------------------------------------ #
+    # Vier-Augen-Freigaben (Backend prueft Recht und eigenen Antrag)
+    # ------------------------------------------------------------------ #
+    def list_approvals(self) -> dict[str, Any]:
+        return self._get("/approvals")
+
+    def approve_request(self, req_id: int, notes: str | None = None) -> dict[str, Any]:
+        return self._post(f"/approvals/{req_id}/approve", {"notes": notes}, timeout=180)
+
+    def reject_request(self, req_id: int, notes: str) -> dict[str, Any]:
+        return self._post(f"/approvals/{req_id}/reject", {"notes": notes})
+
     def get_my_trial_status(self) -> dict[str, Any]:
         """Trial-Status des eingeloggten Users (/trial/me, braucht Token)."""
         return self._get("/trial/me", timeout=5)

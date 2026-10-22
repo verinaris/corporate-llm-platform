@@ -1,151 +1,154 @@
 """
-Compliance-Dashboard — Vier-Augen-Freigaben.
+Compliance-Freigaben: Vier-Augen-Antraege einsehen und entscheiden.
 
-Alle User koennen offene Antraege einsehen (Transparenz).
-Nur Rolle 'compliance-officer' und 'admin' koennen entscheiden.
+Die Seite spricht ausschliesslich mit der API (/approvals). Ob jemand
+entscheiden darf, sagt das Backend (can_decide); ueber den eigenen Antrag
+entscheidet nie, wer ihn gestellt hat. Nach einer Freigabe fuehrt der Server
+das Werkzeug sofort aus, mit den Rechten des Antragstellers.
+
+Analogie: das Schwarze Brett mit dem Posteingang. Jeder sieht, dass Post da
+ist; stempeln darf nur, wer zustaendig ist, und nie den eigenen Brief.
 """
 
-from datetime import datetime, timezone
 import json
+from datetime import datetime, timezone
 
 import streamlit as st
 
-from app.services.approval_request import (
-    approve_request,
-    list_pending,
-    reject_request,
-    get_request,
-)
-from app.models import ApprovalStatus
+from streamlit_app.api_client import APIClient, APIError
+
+WERKZEUGE = {
+    "regulation_import": "Regulierungs-Import",
+    "search_documents": "Dokumentensuche",
+}
+
+ERGEBNIS = {
+    "succeeded": ("success", "Freigegeben und ausgeführt."),
+    "failed": ("error", "Freigegeben, aber die Ausführung ist fehlgeschlagen."),
+    "skipped": ("warning", "Freigegeben, aber nicht ausgeführt."),
+}
 
 
-def _format_relative(dt: datetime) -> str:
-    """Zeigt 'vor X Minuten/Stunden' fuer Benutzerfreundlichkeit."""
+def _relativ(iso: str | None) -> str:
+    if not iso:
+        return ""
+    try:
+        dt = datetime.fromisoformat(iso.replace("Z", "+00:00"))
+    except ValueError:
+        return ""
     if dt.tzinfo is None:
         dt = dt.replace(tzinfo=timezone.utc)
-    diff = datetime.now(timezone.utc) - dt
-    seconds = int(diff.total_seconds())
-    if seconds < 60:
-        return f"vor {seconds}s"
-    if seconds < 3600:
-        return f"vor {seconds // 60} Min"
-    if seconds < 86400:
-        return f"vor {seconds // 3600} Std"
-    return f"vor {seconds // 86400} Tagen"
+    sek = int((datetime.now(timezone.utc) - dt).total_seconds())
+    if sek < 60:
+        return "vor wenigen Sekunden"
+    if sek < 3600:
+        return f"vor {sek // 60} Min."
+    if sek < 86400:
+        return f"vor {sek // 3600} Std."
+    return f"vor {sek // 86400} Tagen"
 
 
-def _may_decide(user) -> bool:
-    """Prueft, ob der User entscheiden darf."""
-    if not user:
-        return False
-    role = getattr(user, "role", None)
-    if role is None:
-        return False
-    role_value = role.value if hasattr(role, "value") else str(role)
-    return role_value in ("admin", "compliance-officer")
+def _fehler(exc: Exception) -> str:
+    return getattr(exc, "detail", None) or str(exc)
 
 
-def render():
-    """Haupt-Render-Funktion fuer das Compliance-Dashboard."""
+def _zeige_ergebnis(res: dict) -> None:
+    art, text = ERGEBNIS.get(res.get("execution_status") or "", ("info", "Entschieden."))
+    getattr(st, art)(f"Antrag #{res.get('id')}: {text}")
+    roh = res.get("execution_result")
+    if roh:
+        try:
+            daten = json.loads(roh)
+        except ValueError:
+            daten = roh
+        if isinstance(daten, dict) and daten.get("error"):
+            st.caption(f"Grund: {daten['error']}")
+        with st.expander("Ergebnis im Detail"):
+            st.json(daten) if isinstance(daten, (dict, list)) else st.code(str(daten))
+
+
+def render() -> None:
     st.header("🛡️ Compliance-Freigaben")
 
-    user = st.session_state.get("current_user")
-    can_decide = _may_decide(user)
+    client = APIClient(token=st.session_state.get("token"))
+    ich = (st.session_state.get("user") or {}).get("email", "").lower()
 
-    if not can_decide:
-        st.info(
-            "Sie sehen alle offenen Freigabe-Anträge zur Nachvollziehbarkeit. "
-            "Entscheidungen können nur Compliance-Officer treffen."
-        )
+    # Ergebnis der letzten Entscheidung (ueberlebt das Neuladen)
+    if "_approval_result" in st.session_state:
+        res = st.session_state.pop("_approval_result")
+        if res.get("status") == "rejected":
+            st.info(f"Antrag #{res.get('id')} wurde abgelehnt.")
+        else:
+            _zeige_ergebnis(res)
 
-    # Offene Antraege laden
     try:
-        pending = list_pending()
-    except Exception as exc:
-        st.error(f"Anträge konnten nicht geladen werden: {exc}")
+        daten = client.list_approvals()
+    except APIError as exc:
+        st.error(f"Anträge konnten nicht geladen werden: {_fehler(exc)}")
         return
 
-    if not pending:
+    darf = bool(daten.get("can_decide"))
+    antraege = daten.get("items") or []
+
+    if darf:
+        st.caption(
+            "Sie dürfen über Anträge entscheiden. Über eigene Anträge entscheidet "
+            "eine andere berechtigte Person (Vier-Augen-Prinzip). Mit der Freigabe "
+            "wird der Vorgang sofort ausgeführt."
+        )
+    else:
+        st.info(
+            "Sie sehen alle offenen Freigabe-Anträge zur Nachvollziehbarkeit. "
+            "Entscheiden können fachliche Freigeber, Compliance-Officer und Administratoren."
+        )
+
+    if not antraege:
         st.success("Keine offenen Freigabe-Anträge.")
         return
 
-    st.write(f"**{len(pending)} offene Anträge**")
-    st.divider()
+    n = len(antraege)
+    st.write(f"**{n} offener Antrag**" if n == 1 else f"**{n} offene Anträge**")
 
-    for req in pending:
+    for a in antraege:
         with st.container(border=True):
-            # Kopfzeile
-            col1, col2 = st.columns([3, 1])
-            with col1:
-                st.markdown(f"**Antrag #{req.id} — {req.tool_name}**")
-                st.caption(
-                    f"von {req.requester_email} ({req.requester_role}) "
-                    f"— {_format_relative(req.created_at)}"
-                )
-            with col2:
-                st.markdown(f":orange[⏳ {req.status.value}]")
+            kopf, status = st.columns([4, 1])
+            name = WERKZEUGE.get(a["tool_name"], a["tool_name"])
+            kopf.markdown(f"**Antrag #{a['id']}: {name}**")
+            kopf.caption(f"von {a['requester_email']} ({a['requester_role']}), {_relativ(a.get('created_at'))}")
+            status.markdown(":orange[⏳ offen]")
 
-            # Grund (falls angegeben)
-            if req.reason:
-                st.markdown(f"**Begruendung:** {req.reason}")
+            if a.get("reason"):
+                st.markdown(f"**Begründung:** {a['reason']}")
 
-            # Params (aufklappbar)
-            with st.expander("Tool-Parameter anzeigen"):
-                try:
-                    params = json.loads(req.params_json)
-                    st.json(params)
-                except Exception:
-                    st.code(req.params_json)
+            if a.get("params") is not None:
+                with st.expander("Parameter anzeigen"):
+                    st.json(a["params"])
+            else:
+                st.caption("Die Parameter sehen nur Entscheidungsberechtigte und der Antragsteller.")
 
-            # Entscheidungs-Buttons (nur wenn erlaubt)
-            if can_decide:
-                st.divider()
-                notes_key = f"notes_{req.id}"
-                notes = st.text_area(
-                    "Entscheidungs-Notiz (Pflicht bei Ablehnung)",
-                    key=notes_key,
-                    height=68,
-                )
+            if not darf:
+                continue
+            if a["requester_email"].lower() == ich:
+                st.caption("Ihr eigener Antrag: Die Entscheidung trifft eine andere berechtigte Person.")
+                continue
 
-                col_ok, col_no = st.columns(2)
-                with col_ok:
-                    if st.button(
-                        "✅ Freigeben",
-                        key=f"approve_{req.id}",
-                        type="primary",
-                        use_container_width=True,
-                    ):
-                        try:
-                            _, token_str = approve_request(
-                                request_id=req.id,
-                                approver_email=user.email,
-                                approver_role=user.role.value,
-                                decision_notes=notes or None,
-                            )
-                            st.success(
-                                f"Freigegeben. Token: {token_str[:16]}..."
-                            )
-                            st.rerun()
-                        except Exception as exc:
-                            st.error(f"Fehler: {exc}")
-
-                with col_no:
-                    if st.button(
-                        "❌ Ablehnen",
-                        key=f"reject_{req.id}",
-                        use_container_width=True,
-                    ):
-                        if not notes or not notes.strip():
-                            st.error("Ablehnungs-Grund ist Pflicht.")
-                        else:
-                            try:
-                                reject_request(
-                                    request_id=req.id,
-                                    approver_email=user.email,
-                                    approver_role=user.role.value,
-                                    decision_notes=notes,
-                                )
-                                st.success("Abgelehnt.")
-                                st.rerun()
-                            except Exception as exc:
-                                st.error(f"Fehler: {exc}")
+            notiz = st.text_area("Notiz zur Entscheidung (Pflicht bei Ablehnung)",
+                                 key=f"notes_{a['id']}", height=68)
+            ok, nein = st.columns(2)
+            if ok.button("✅ Freigeben und ausführen", key=f"approve_{a['id']}",
+                         type="primary", use_container_width=True):
+                with st.spinner("Wird freigegeben und ausgeführt ..."):
+                    try:
+                        st.session_state["_approval_result"] = client.approve_request(a["id"], notiz or None)
+                        st.rerun()
+                    except APIError as exc:
+                        st.error(f"Freigabe fehlgeschlagen: {_fehler(exc)}")
+            if nein.button("❌ Ablehnen", key=f"reject_{a['id']}", use_container_width=True):
+                if not notiz or not notiz.strip():
+                    st.error("Für eine Ablehnung ist eine Begründung Pflicht.")
+                else:
+                    try:
+                        st.session_state["_approval_result"] = client.reject_request(a["id"], notiz)
+                        st.rerun()
+                    except APIError as exc:
+                        st.error(f"Ablehnung fehlgeschlagen: {_fehler(exc)}")
