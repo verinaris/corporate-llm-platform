@@ -147,29 +147,37 @@ class RegulationImportTool(AutomationTool):
         if not tool_claim_upload_target(user_id, collection):
             return {"ok": False, "error": f"Kein Zugriff auf die Sammlung '{collection}'.", "url": url}
 
-        chunks = _chunk_text(fetched["text"], DEFAULT_CHUNK_SIZE, DEFAULT_CHUNK_OVERLAP)
-        if not chunks:
-            return {"ok": False, "error": "Kein indexierbarer Text gefunden.", "url": url}
+        # Ueber denselben Weg wie der Text-Eingang ablegen: echter Dokument-
+        # Eintrag (sichtbar, loeschbar, Original abrufbar), Duplikatspruefung,
+        # verbucht auf den Antragsteller.
+        from sqlmodel import Session
 
-        # Ueber denselben Store wie der Datei-Upload ablegen. Als document_id nutzen
-        # wir einen stabilen Hash der URL (kein DB-Document-Eintrag noetig fuers MVP).
-        doc_ref = abs(hash(url)) % (10**9)
-        ids = [f"web-{doc_ref}-chunk-{i}" for i in range(len(chunks))]
-        metadatas = [
-            {
-                "document_id": doc_ref,
-                "filename": fetched["title"][:120] or url,
-                "source_url": url,
-                "chunk_index": i,
-            }
-            for i in range(len(chunks))
-        ]
-        get_document_store().add_chunks(collection, ids, chunks, metadatas)
+        from app.database import engine
+        from app.models import User
+        from app.services.text_ingest import IngestError, ingest_text
+
+        with Session(engine) as session:
+            user = session.get(User, user_id) if user_id else None
+            if user is None:
+                return {"ok": False, "error": "Antragsteller unbekannt.", "url": url}
+            try:
+                doc = ingest_text(
+                    session,
+                    user_email=user.email,
+                    collection=collection,
+                    title=(fetched.get("title") or url)[:255],
+                    text=fetched["text"],
+                    source=url,
+                )
+            except IngestError as exc:
+                return {"ok": False, "error": exc.detail, "url": url}
+            doc_id, chunks = doc.id, doc.chunk_count
 
         return {
             "ok": True,
             "url": url,
             "collection": collection,
-            "chunks": len(chunks),
+            "document_id": doc_id,
+            "chunks": chunks,
             "title": fetched["title"],
         }

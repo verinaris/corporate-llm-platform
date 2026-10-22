@@ -47,6 +47,7 @@ from app.schemas_documents import (
 )
 from app.services.document_processor import process_pdf, process_text
 from app.services.document_store import get_document_store
+from app.services.text_ingest import IngestError, ingest_text
 from app.services.collection_access import (
     readable_collections,
     require_collection_access,
@@ -287,79 +288,18 @@ async def upload_text(
     collection = _validate_collection_name(payload.collection)
     require_upload_target(session, user, collection)
 
-    text_bytes = payload.text.encode("utf-8")
-    if len(text_bytes) > MAX_UPLOAD_SIZE:
-        raise HTTPException(
-            status_code=413,
-            detail=f"Text zu groß (max. {MAX_UPLOAD_SIZE // (1024 * 1024)} MB).",
-        )
-
-    content_hash = _compute_hash(text_bytes)
-    existing = _find_duplicate(session, collection, content_hash)
-    if existing:
-        raise HTTPException(
-            status_code=409,
-            detail=_duplicate_detail_message(existing, collection),
-        )
-
-    processed = process_text(payload.text)
-    if not processed.chunks:
-        raise HTTPException(status_code=422, detail="Kein verwertbarer Text enthalten.")
-
-    stored_filename = f"{uuid.uuid4().hex}.txt"
-    stored_path = STORAGE_DIR / stored_filename
-    stored_path.write_bytes(text_bytes)
-
-    _upsert_collection_meta(
-        session=session,
-        name=collection,
-        user_email=user.email,
-        description=payload.description if payload.description else None,
-    )
-
-    doc = Document(
-        collection=collection,
-        original_filename=payload.title.strip(),
-        content_type="text/plain; charset=utf-8",
-        size_bytes=len(text_bytes),
-        page_count=0,
-        chunk_count=len(processed.chunks),
-        uploaded_by=user.email,
-        stored_path=str(stored_path),
-        content_hash=content_hash,
-    )
-    session.add(doc)
-    session.commit()
-    session.refresh(doc)
-
-    store = get_document_store()
-    ids = [f"doc-{doc.id}-chunk-{c.chunk_index}" for c in processed.chunks]
-    texts = [c.text for c in processed.chunks]
-    metadatas: list[dict] = [
-        {
-            "document_id": doc.id,
-            "filename": doc.original_filename,
-            "page": c.page,
-            "chunk_index": c.chunk_index,
-            "uploaded_by": user.email,
-            "source": payload.source or "",
-        }
-        for c in processed.chunks
-    ]
     try:
-        store.add_chunks(collection, ids, texts, metadatas)
-    except Exception as exc:
-        session.delete(doc)
-        session.commit()
-        try:
-            stored_path.unlink(missing_ok=True)
-        except Exception:
-            pass
-        raise HTTPException(
-            status_code=500,
-            detail=f"Einbettung fehlgeschlagen: {exc}",
-        ) from exc
-
+        doc = ingest_text(
+            session,
+            user_email=user.email,
+            collection=collection,
+            title=payload.title,
+            text=payload.text,
+            source=payload.source,
+            description=payload.description,
+        )
+    except IngestError as exc:
+        raise HTTPException(status_code=exc.status, detail=exc.detail) from exc
     return DocumentOut.from_document(doc)
 
 
