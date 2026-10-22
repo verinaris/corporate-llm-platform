@@ -466,3 +466,8 @@ class PendingApproval(SQLModel, table=True):
 
     # Verknüpfung zum ausgestellten Token (falls approved)
     approval_token: str | None = Field(default=None)
+
+    # Ausfuehrung nach der Freigabe (F2): succeeded / failed / skipped
+    execution_status: str | None = Field(default=None)
+    execution_result: str | None = Field(default=None)   # JSON, gekuerzt
+    executed_at: datetime | None = Field(default=None)

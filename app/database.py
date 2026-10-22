@@ -140,6 +140,16 @@ def _run_lightweight_migrations() -> None:
             conn.commit()
             print(f"[Migration] {res.rowcount} Sammlung(en) ohne Metadaten nachgetragen")
 
+    # --- Freigaben: Ergebnis der Ausfuehrung am Antrag (F2) ---
+    with engine.connect() as conn:
+        result = conn.exec_driver_sql("PRAGMA table_info(pending_approval)")
+        pa_cols = {row[1] for row in result}
+        for spalte, typ in (("execution_status", "TEXT"), ("execution_result", "TEXT"), ("executed_at", "DATETIME")):
+            if pa_cols and spalte not in pa_cols:
+                conn.exec_driver_sql(f"ALTER TABLE pending_approval ADD COLUMN {spalte} {typ}")
+                conn.commit()
+                print(f"[Migration] pending_approval.{spalte} hinzugefügt")
+
     # Backfill: bestehende Dokumente bekommen ihren Hash nachträglich
     _backfill_content_hashes()
 

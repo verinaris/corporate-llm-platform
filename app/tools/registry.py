@@ -12,6 +12,7 @@ Verwendung:
     ToolRegistry.execute("search_documents", {"query": "..."}, user)
 """
 
+import inspect
 from typing import Any
 
 from app.models import AuditAction
@@ -96,42 +97,25 @@ class ToolRegistry:
         ]
 
     @classmethod
-    def execute(
+    def _authorize(
         cls,
         name: str,
         params: dict,
-        user_id: int | None = None,
-        user_role: str = "admin",
-        user_email: str = "system@verinaris.local",
-        approval_token: str | None = None,
-    ) -> dict[str, Any]:
+        user_role: str,
+        user_email: str,
+        approval_token: str | None,
+    ) -> BaseTool:
         """
-        Führt ein Tool aus mit Berechtigungsprüfung und Audit-Log.
+        Rollen- und Freigabepruefung, gemeinsam fuer execute() und execute_async().
 
-        Jeder Aufruf erzeugt einen Audit-Log-Eintrag — auch bei
-        fehlgeschlagenen Berechtigungs-Checks oder Tool-Fehlern
-        (DSB-Nachvollziehbarkeit).
-
-        Args:
-            name: Name des Tools
-            params: Tool-Parameter
-            user_id: ID des aufrufenden Users (für Debug)
-            user_role: Rolle des Users (für Berechtigungsprüfung)
-            user_email: Email des Users (für Audit-Log)
-
-        Returns:
-            Tool-Ergebnis
-
-        Raises:
-            ToolNotFoundError: Tool existiert nicht
-            PermissionDeniedError: User hat keine Berechtigung
+        Ohne Token legt ein freigabepflichtiges Tool einen Antrag an und wirft
+        ApprovalPendingError. Mit Token wird dieser geprueft und verbraucht.
         """
         tool = cls._tools.get(name)
         if not tool:
-            # Kein Audit hier — Tool existiert gar nicht
+            # Kein Audit hier -- Tool existiert gar nicht
             raise ToolNotFoundError(f"Tool '{name}' not found")
 
-        # Berechtigungs-Check
         if user_role not in tool.allowed_roles:
             audit_log(
                 user_email=user_email,
@@ -139,20 +123,13 @@ class ToolRegistry:
                 user_role=user_role,
                 target_type="tool",
                 target_id=name,
-                details={
-                    "reason": "role_not_allowed",
-                    "required_roles": list(tool.allowed_roles),
-                },
+                details={"reason": "role_not_allowed", "required_roles": list(tool.allowed_roles)},
                 success=False,
             )
-            raise PermissionDeniedError(
-                f"Role '{user_role}' is not allowed to use tool '{name}'"
-            )
+            raise PermissionDeniedError(f"Role '{user_role}' is not allowed to use tool '{name}'")
 
-        # Approval-Check für sensitive Tools
         if tool.requires_human_oversight:
             if approval_token:
-                # Token vorhanden -> pruefen und konsumieren
                 if not consume_token(approval_token, name, params):
                     audit_log(
                         user_email=user_email,
@@ -163,11 +140,8 @@ class ToolRegistry:
                         details={"reason": "approval_token_invalid"},
                         success=False,
                     )
-                    raise PermissionDeniedError(
-                        f"Approval-Token für '{name}' ist ungültig oder abgelaufen"
-                    )
+                    raise PermissionDeniedError(f"Approval-Token für '{name}' ist ungültig oder abgelaufen")
             else:
-                # Kein Token -> automatisch Antrag anlegen und ApprovalPending werfen
                 pending = create_pending_request(
                     requester_email=user_email,
                     requester_role=user_role,
@@ -181,21 +155,15 @@ class ToolRegistry:
                     user_role=user_role,
                     target_type="tool",
                     target_id=name,
-                    details={
-                        "reason": "approval_pending",
-                        "pending_request_id": pending.id,
-                    },
+                    details={"reason": "approval_pending", "pending_request_id": pending.id},
                     success=False,
                 )
-                raise ApprovalPendingError(
-                    request_id=pending.id,
-                    tool_name=name,
-                )
+                raise ApprovalPendingError(request_id=pending.id, tool_name=name)
+        return tool
 
-        # Tool ausführen (Fehler-tolerant für Audit)
-        try:
-            result = tool.execute(params, user_id=user_id)
-        except Exception as e:
+    @classmethod
+    def _audit_result(cls, name, params, user_role, user_email, result=None, error=None) -> None:
+        if error is not None:
             audit_log(
                 user_email=user_email,
                 action=AuditAction.TOOL_FAILED,
@@ -203,28 +171,73 @@ class ToolRegistry:
                 target_type="tool",
                 target_id=name,
                 details={
-                    "error_type": e.__class__.__name__,
-                    "error_message": str(e),
+                    "error_type": error.__class__.__name__,
+                    "error_message": str(error),
                     "params_keys": list(params.keys()),
                 },
                 success=False,
             )
+        else:
+            audit_log(
+                user_email=user_email,
+                action=AuditAction.TOOL_EXECUTED,
+                user_role=user_role,
+                target_type="tool",
+                target_id=name,
+                details={"params_keys": list(params.keys()), "result_type": type(result).__name__},
+                success=True,
+            )
+
+    @classmethod
+    def execute(
+        cls,
+        name: str,
+        params: dict,
+        user_id: int | None = None,
+        user_role: str = "admin",
+        user_email: str = "system@verinaris.local",
+        approval_token: str | None = None,
+    ) -> dict[str, Any]:
+        """
+        Fuehrt ein (synchrones) Tool aus, mit Berechtigungspruefung und Audit-Log.
+
+        Asynchrone Tools (z.B. RegulationImportTool) muessen ueber
+        execute_async() laufen; hier wuerde ihr Ergebnis sonst als nie
+        ausgefuehrte Coroutine verloren gehen.
+        """
+        tool = cls._authorize(name, params, user_role, user_email, approval_token)
+        try:
+            result = tool.execute(params, user_id=user_id)
+            if inspect.isawaitable(result):
+                if hasattr(result, "close"):
+                    result.close()
+                raise TypeError(f"Tool '{name}' ist asynchron und muss über execute_async() laufen.")
+        except Exception as e:
+            cls._audit_result(name, params, user_role, user_email, error=e)
             raise
+        cls._audit_result(name, params, user_role, user_email, result=result)
+        return result
 
-        # Erfolg loggen
-        audit_log(
-            user_email=user_email,
-            action=AuditAction.TOOL_EXECUTED,
-            user_role=user_role,
-            target_type="tool",
-            target_id=name,
-            details={
-                "params_keys": list(params.keys()),
-                "result_type": type(result).__name__,
-            },
-            success=True,
-        )
-
+    @classmethod
+    async def execute_async(
+        cls,
+        name: str,
+        params: dict,
+        user_id: int | None = None,
+        user_role: str = "admin",
+        user_email: str = "system@verinaris.local",
+        approval_token: str | None = None,
+    ) -> dict[str, Any]:
+        """Wie execute(), wartet aber auf asynchrone Tools."""
+        tool = cls._authorize(name, params, user_role, user_email, approval_token)
+        try:
+            result = tool.execute(params, user_id=user_id)
+            if inspect.isawaitable(result):
+                result = await result
+        except Exception as e:
+            cls._audit_result(name, params, user_role, user_email, error=e)
+            raise
+        cls._audit_result(name, params, user_role, user_email, result=result)
         return result
 
     @classmethod

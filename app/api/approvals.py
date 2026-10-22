@@ -19,15 +19,18 @@ selbst geschrieben hat.
 """
 
 import json
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel
+from sqlalchemy import func
+from sqlmodel import Session, select
 
 from app.auth.dependencies import get_current_user
 from app.auth.permissions import can_approve
-from app.models import ApprovalStatus, AuditAction, User
+from app.database import engine
+from app.models import ApprovalStatus, AuditAction, PendingApproval, User
 from app.services import audit
 from app.services.approval_request import (
     approve_request,
@@ -35,6 +38,7 @@ from app.services.approval_request import (
     list_pending,
     reject_request,
 )
+from app.tools.registry import ToolRegistry
 
 router = APIRouter(prefix="/approvals", tags=["approvals"])
 
@@ -51,6 +55,9 @@ class ApprovalOut(BaseModel):
     decided_by_email: Optional[str] = None
     decided_at: Optional[datetime] = None
     decision_notes: Optional[str] = None
+    execution_status: Optional[str] = None
+    execution_result: Optional[str] = None
+    executed_at: Optional[datetime] = None
 
 
 class ApprovalListOut(BaseModel):
@@ -90,6 +97,9 @@ def _out(req, user: User) -> ApprovalOut:
         decided_by_email=req.decided_by_email,
         decided_at=getattr(req, "decided_at", None),
         decision_notes=req.decision_notes,
+        execution_status=getattr(req, "execution_status", None),
+        execution_result=getattr(req, "execution_result", None) if show else None,
+        executed_at=getattr(req, "executed_at", None),
     )
 
 
@@ -126,6 +136,49 @@ def _check_decider(request: Request, user: User, req_id: int, decision: str):
     return req
 
 
+async def _execute_approved(req, token: str):
+    """
+    Fuehrt das freigegebene Tool sofort aus -- mit Konto, Rolle und
+    Sammlungsrechten des ANTRAGSTELLERS, nicht des Freigebers.
+    Ergebnis und Status werden am Antrag gespeichert.
+    """
+    with Session(engine) as s:
+        requester = s.exec(
+            select(User).where(func.lower(User.email) == (req.requester_email or "").lower())
+        ).first()
+        requester_id = requester.id if requester else None
+        requester_role = _rv(requester.role) if requester else None
+        requester_active = bool(requester and requester.is_active)
+
+    if not requester_active:
+        status, result = "skipped", {"error": "Antragsteller nicht (mehr) aktiv, nichts ausgeführt."}
+    else:
+        try:
+            params = json.loads(req.params_json)
+            result = await ToolRegistry.execute_async(
+                req.tool_name,
+                params,
+                user_id=requester_id,
+                user_role=requester_role,
+                user_email=req.requester_email,
+                approval_token=token,
+            )
+            failed = isinstance(result, dict) and (result.get("ok") is False or bool(result.get("error")))
+            status = "failed" if failed else "succeeded"
+        except Exception as exc:  # Tool fehlt, Token ungueltig, Laufzeitfehler
+            status, result = "failed", {"error": f"{type(exc).__name__}: {exc}"}
+
+    with Session(engine) as s:
+        r = s.get(PendingApproval, req.id)
+        r.execution_status = status
+        r.execution_result = json.dumps(result, ensure_ascii=False, default=str)[:4000]
+        r.executed_at = datetime.now(timezone.utc)
+        s.add(r)
+        s.commit()
+        s.refresh(r)
+        return r
+
+
 @router.get("", response_model=ApprovalListOut)
 def list_approvals(user: User = Depends(get_current_user)) -> ApprovalListOut:
     """Offene Antraege, aelteste zuerst."""
@@ -136,7 +189,7 @@ def list_approvals(user: User = Depends(get_current_user)) -> ApprovalListOut:
 
 
 @router.post("/{req_id}/approve", response_model=ApprovalOut)
-def approve(
+async def approve(
     req_id: int,
     payload: DecisionIn,
     request: Request,
@@ -152,12 +205,14 @@ def approve(
         )
     except ValueError as exc:
         raise HTTPException(409, detail=str(exc)) from exc
+    executed = await _execute_approved(updated, _token)
     _audit(request, user, AuditAction.APPROVAL_GRANTED, req_id, {
         "tool": req.tool_name,
         "requester": req.requester_email,
         "notes": bool(payload.notes and payload.notes.strip()),
+        "execution": executed.execution_status,
     })
-    return _out(updated, user)
+    return _out(executed, user)
 
 
 @router.post("/{req_id}/reject", response_model=ApprovalOut)
