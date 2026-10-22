@@ -33,6 +33,7 @@ from app.services.rag import (
     build_rag_context,
     extract_last_user_query,
     inject_rag_context,
+    strip_general_knowledge,
 )
 from app.tools.registry import ApprovalPendingError, ToolRegistry
 
@@ -222,6 +223,10 @@ async def chat(
     latency_ms = int((time.perf_counter() - started) * 1000)
 
     # --- Post-Process (Disclaimer anhängen, Filter) ---
+    # Mit gewaehlter Sammlung nur Quellenwissen: Allgemeinwissen-Abschnitte
+    # deterministisch entfernen, BEVOR das Plugin seinen Hinweis anhaengt.
+    if request.collection:
+        result.content, _ = strip_general_knowledge(result.content)
     result.content = plugin.post_process_response(result.content)
 
     # --- Logging ---

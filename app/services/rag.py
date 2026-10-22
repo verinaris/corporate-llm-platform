@@ -10,6 +10,8 @@ die passenden Karteikarten heraussucht und sie dem Berater (Claude) mit
 auf den Tisch legt. Der Berater zitiert daraus und vermerkt die Quelle.
 """
 
+import re
+
 from app.schemas import ChatMessage, SourceReference
 from app.services.document_store import get_document_store
 
@@ -32,9 +34,9 @@ aus der Wissensbibliothek des Nutzers. Regeln:
    (z.B. ist eine Notiz im Ordner „Rezepte" ein Rezept, auch wenn das Wort im \
    Text fehlt).
 6. Erfinde KEINE Quellen, die nicht im Kontext stehen.
-7. Nur wenn der Nutzer ausdrücklich nach allgemeinem Wissen fragt, darfst du \
-   es ergänzen, und zwar klar getrennt unter der Überschrift \
-   „Allgemeines Wissen (nicht aus Ihren Quellen)".
+7. Ergänze NIEMALS allgemeines Wissen, auch nicht unter einer eigenen \
+   Überschrift. Fragt der Nutzer ausdrücklich danach, antworte, dass \
+   Allgemeinwissen nur ohne gewählte Sammlung (Einstellung „keine“) verfügbar ist.
 """
 
 
@@ -135,3 +137,44 @@ def extract_last_user_query(messages: list[ChatMessage]) -> str:
         if m.role == "user":
             return m.content
     return ""
+
+
+# ----------------------------------------------------------------------- #
+# Filter: kein Allgemeinwissen im Modus mit Wissensbibliothek
+# ----------------------------------------------------------------------- #
+#
+# Ein kleines lokales Modell befolgt Regel 7 nicht immer. Damit eine Antwort
+# mit Sammlung nachweislich nur aus den Quellen stammt, entfernt dieser Filter
+# einen als "Allgemeines Wissen" / "Allgemeinwissen" ueberschriebenen Teil
+# deterministisch. Grenze: Ergaenzungen OHNE solche Ueberschrift erkennt er
+# nicht -- dafuer bleibt die Pruefpflicht an der Quelle (siehe Handbuch).
+
+GENERAL_KNOWLEDGE_NOTICE = (
+    "_Hinweis: Ein Absatz aus allgemeinem Modellwissen wurde entfernt. "
+    "Antworten mit gewählter Sammlung beruhen ausschließlich auf Ihren Quellen. "
+    "Für Allgemeinwissen wählen Sie unter Wissensbibliothek „keine“._"
+)
+
+_GK_START = re.compile(
+    r"^[ \t>]*(?:#{1,6}[ \t]*)?(?:\*\*|__)?[ \t]*Allgemein(?:es[ \t]+Wissen|wissen)\b",
+    re.IGNORECASE | re.MULTILINE,
+)
+_HEADING = re.compile(r"^[ \t]*(?:#{1,6}[ \t]+\S|\*\*[^*\n]+\*\*[ \t]*:?[ \t]*$)", re.MULTILINE)
+
+
+def strip_general_knowledge(text: str) -> tuple[str, bool]:
+    """Entfernt Abschnitte 'Allgemeines Wissen'. Liefert (text, wurde_entfernt)."""
+    if not text:
+        return text, False
+    removed = False
+    while True:
+        m = _GK_START.search(text)
+        if not m:
+            break
+        nxt = _HEADING.search(text, m.end())
+        end = nxt.start() if nxt else len(text)
+        text = text[: m.start()] + text[end:]
+        removed = True
+    if removed:
+        text = re.sub(r"\n{3,}", "\n\n", text).rstrip() + "\n\n" + GENERAL_KNOWLEDGE_NOTICE
+    return text, removed
