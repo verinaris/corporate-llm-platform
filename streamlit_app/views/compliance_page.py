@@ -132,18 +132,24 @@ def render() -> None:
                 st.caption("Ihr eigener Antrag: Die Entscheidung trifft eine andere berechtigte Person.")
                 continue
 
-            notiz = st.text_area("Notiz zur Entscheidung (Pflicht bei Ablehnung)",
-                                 key=f"notes_{a['id']}", height=68)
-            ok, nein = st.columns(2)
-            if ok.button("✅ Freigeben und ausführen", key=f"approve_{a['id']}",
-                         type="primary", use_container_width=True):
+            # Formular: Notiz und Klick werden zusammen uebertragen. Ohne Formular
+            # schluckt das Uebernehmen des Notizfelds den ersten Klick.
+            with st.form(key=f"form_{a['id']}", border=False):
+                notiz = st.text_area("Notiz zur Entscheidung (Pflicht bei Ablehnung)",
+                                     key=f"notes_{a['id']}", height=68)
+                ok, nein = st.columns(2)
+                freigeben = ok.form_submit_button("✅ Freigeben und ausführen", type="primary",
+                                                  use_container_width=True)
+                ablehnen = nein.form_submit_button("❌ Ablehnen", use_container_width=True)
+
+            if freigeben:
                 with st.spinner("Wird freigegeben und ausgeführt ..."):
                     try:
                         st.session_state["_approval_result"] = client.approve_request(a["id"], notiz or None)
                         st.rerun()
                     except APIError as exc:
                         st.error(f"Freigabe fehlgeschlagen: {_fehler(exc)}")
-            if nein.button("❌ Ablehnen", key=f"reject_{a['id']}", use_container_width=True):
+            if ablehnen:
                 if not notiz or not notiz.strip():
                     st.error("Für eine Ablehnung ist eine Begründung Pflicht.")
                 else:
