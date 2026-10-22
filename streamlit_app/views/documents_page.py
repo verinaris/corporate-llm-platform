@@ -352,7 +352,9 @@ def _render_collections(client: APIClient, role: str) -> None:
             if tags:
                 st.markdown(" ".join(f"`#{t}`" for t in tags))
 
-            if is_privileged:
+            # Aendern darf das Backend nur Compliance-Officer und Admin (plus Pflegerecht
+            # an der Sammlung); dem fachlichen Freigeber den Knopf gar nicht zeigen.
+            if role in ("admin", "compliance-officer"):
                 with st.expander("✏️ Beschreibung & Tags bearbeiten"):
                     _render_collection_editor(client, coll)
 

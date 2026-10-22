@@ -237,6 +237,14 @@ def _render_branch_selector(user: dict) -> None:
     industries = _fetch_industries()
     current_branch = user.get("branch", "generic")
 
+    # Regulierte Branchen kann nur ein Admin setzen (Backend lehnt sonst ab).
+    # Nicht-Admins bekommen sie deshalb gar nicht erst angeboten.
+    if user.get("role") != "admin":
+        industries = [
+            i for i in industries
+            if i.get("self_assignable", True) or i["code"] == current_branch
+        ]
+
     # Code → Index für selectbox
     codes = [i["code"] for i in industries]
     labels = [f"{i['icon']} {i['name']}" for i in industries]
