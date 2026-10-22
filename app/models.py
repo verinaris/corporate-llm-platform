@@ -263,6 +263,11 @@ class AuditAction(str, Enum):
     TOOL_EXECUTED = "tool_executed"
     TOOL_FAILED = "tool_failed"
     TOOL_DENIED = "tool_denied"
+
+    # Vier-Augen-Freigaben
+    APPROVAL_GRANTED = "approval_granted"
+    APPROVAL_REJECTED = "approval_rejected"
+    APPROVAL_DENIED = "approval_denied"   # Entscheidungsversuch ohne Recht / eigener Antrag
     PLAN_UPDATED = "plan_updated"
     PLAN_DELETED = "plan_deleted"
     PLAN_EXPORTED = "plan_exported"
