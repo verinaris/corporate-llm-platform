@@ -724,6 +724,61 @@ def restore_document(
     return DocumentOut.from_document(archive_svc.restore_document(session, doc, user))
 
 
+# ----------------------------------------------------------------------- #
+# Aufbewahrung (nur Metadaten; steht VOR /{document_id})
+# ----------------------------------------------------------------------- #
+
+from datetime import date as _date  # noqa: E402
+
+from app.services import retention as retention_svc  # noqa: E402
+
+
+class RetentionIn(BaseModel):
+    retain_until: Optional[_date] = None   # leer = unbekannt = kein endgueltiges Loeschen
+    reason: str = Field(..., min_length=1, max_length=1000)
+
+
+class LegalHoldIn(BaseModel):
+    legal_hold: bool
+    reason: str = Field(..., min_length=1, max_length=1000)
+
+
+@router.get("/retention")
+def list_retention(
+    user: User = Depends(get_current_user),
+    session: Session = Depends(get_session),
+) -> list[dict]:
+    """Alle Sammlungen mit Frist, Sperre und Loeschstatus. Nur Metadaten."""
+    retention_svc.require_retention_manager(user)
+    return retention_svc.overview(session)
+
+
+@router.put("/collections/{name}/retention")
+def set_collection_retention(
+    name: str,
+    payload: RetentionIn,
+    user: User = Depends(get_current_user),
+    session: Session = Depends(get_session),
+) -> dict:
+    retention_svc.require_retention_manager(user)
+    coll = retention_svc.get_collection_or_404(session, _validate_collection_name(name))
+    coll = retention_svc.set_retention(session, coll, user, payload.retain_until, payload.reason)
+    return retention_svc.overview_entry(session, coll)
+
+
+@router.put("/collections/{name}/legal-hold")
+def set_collection_legal_hold(
+    name: str,
+    payload: LegalHoldIn,
+    user: User = Depends(get_current_user),
+    session: Session = Depends(get_session),
+) -> dict:
+    retention_svc.require_retention_manager(user)
+    coll = retention_svc.get_collection_or_404(session, _validate_collection_name(name))
+    coll = retention_svc.set_legal_hold(session, coll, user, payload.legal_hold, payload.reason)
+    return retention_svc.overview_entry(session, coll)
+
+
 @router.get("/search", response_model=SearchResponse)
 def search_documents(
     q: str,
