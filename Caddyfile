@@ -15,3 +15,11 @@ demo.verinaris.de {
 		format console
 	}
 }
+
+kontakt.verinaris.de {
+	request_body {
+		max_size 20KB
+	}
+	reverse_proxy kontakt:8000
+	encode gzip
+}
