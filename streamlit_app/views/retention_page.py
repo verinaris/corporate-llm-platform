@@ -90,18 +90,25 @@ def _render_overview(client: APIClient, rows: list[dict]) -> None:
     c = next(r for r in rows if r["name"] == wahl)
     st.markdown(f"**Status:** {STATUS_ICON.get(c['status'], '')} {c['status_label']}")
 
+    st.markdown("**Aufbewahrungsfrist**")
+    aktuell = date.fromisoformat(c["retain_until"]) if c["retain_until"] else None
+    # Auswahl AUSSERHALB des Formulars: das Datumsfeld erscheint nur, wenn es auch zaehlt.
+    # (Vorher: vorbelegtes Haekchen "unbekannt" hat ein gewaehltes Datum still ignoriert.)
+    art = st.radio(
+        "Frist", ["Datum festlegen", "Unbekannt (kein endgültiges Löschen möglich)"],
+        index=0 if aktuell else 1, horizontal=True, key=f"frist-art-{wahl}",
+    )
     with st.form(f"frist-{wahl}"):
-        st.markdown("**Aufbewahrungsfrist**")
-        aktuell = date.fromisoformat(c["retain_until"]) if c["retain_until"] else None
-        unbekannt = st.checkbox("Frist unbekannt (dann ist kein endgültiges Löschen möglich)",
-                                value=aktuell is None)
-        datum = st.date_input("Aufbewahren bis (einschließlich)", value=aktuell or date.today(),
-                              min_value=date(1990, 1, 1), max_value=date(2100, 12, 31),
-                              format="DD.MM.YYYY")
-        st.caption("Ist „Frist unbekannt“ angehakt, wird das Datum ignoriert.")
+        if art == "Datum festlegen":
+            datum = st.date_input("Aufbewahren bis (einschließlich)", value=aktuell or date.today(),
+                                  min_value=date(1990, 1, 1), max_value=date(2100, 12, 31),
+                                  format="DD.MM.YYYY")
+        else:
+            datum = None
+            st.caption("Die Frist wird auf „unbekannt“ gesetzt.")
         grund = st.text_input("Begründung (Pflicht, z. B. Rechtsgrundlage)", key=f"frist-grund-{wahl}")
         if st.form_submit_button("Frist übernehmen"):
-            neu = None if unbekannt else datum.isoformat()
+            neu = datum.isoformat() if datum else None
             _do(lambda: client.set_retention(wahl, neu, grund),
                 f"Frist für '{wahl}': " + (_datum(neu) if neu else "unbekannt") + ".")
 
