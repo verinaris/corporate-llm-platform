@@ -150,6 +150,22 @@ def _run_lightweight_migrations() -> None:
                 conn.commit()
                 print(f"[Migration] pending_approval.{spalte} hinzugefügt")
 
+    # --- Archiv und Aufbewahrung ---
+    with engine.connect() as conn:
+        for tabelle, spalten in (
+            ("documents", (("archived_at", "DATETIME"), ("archived_by", "TEXT"))),
+            ("document_collections", (
+                ("archived_at", "DATETIME"), ("archived_by", "TEXT"), ("retain_until", "DATE"),
+                ("legal_hold", "BOOLEAN DEFAULT 0"), ("legal_hold_reason", "TEXT"),
+            )),
+        ):
+            vorhanden = {row[1] for row in conn.exec_driver_sql(f"PRAGMA table_info({tabelle})")}
+            for spalte, typ in spalten:
+                if vorhanden and spalte not in vorhanden:
+                    conn.exec_driver_sql(f"ALTER TABLE {tabelle} ADD COLUMN {spalte} {typ}")
+                    conn.commit()
+                    print(f"[Migration] {tabelle}.{spalte} hinzugefügt")
+
     # Backfill: bestehende Dokumente bekommen ihren Hash nachträglich
     _backfill_content_hashes()
 

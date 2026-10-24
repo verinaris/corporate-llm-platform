@@ -100,3 +100,18 @@ def can_maintain_collection(level) -> bool:
 def can_manage_collection_access(role) -> bool:
     """Darf diese Rolle Rechte an Sammlungen vergeben/entziehen?"""
     return _role_str(role) in _COLLECTION_ACCESS_MANAGERS
+
+
+# ----------------------------------------------------------------------- #
+# Aufbewahrung: Fristen, Loeschsperre, endgueltiges Loeschen beantragen
+# ----------------------------------------------------------------------- #
+# Wer darf Aufbewahrungsfristen und Loeschsperren setzen und das endgueltige
+# Loeschen beantragen? Bewusst NICHT der Besitzer allein: Aufbewahrung ist eine
+# Compliance-Frage, keine Frage der Ablage. Die Freigabe macht eine ANDERE
+# Person (Vier-Augen-Verfahren).
+_RETENTION_MANAGERS: frozenset[str] = frozenset({"admin", "compliance-officer"})
+
+
+def can_manage_retention(role) -> bool:
+    """Darf diese Rolle Fristen und Loeschsperren setzen und Loeschung beantragen?"""
+    return _role_str(role) in _RETENTION_MANAGERS

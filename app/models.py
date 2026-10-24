@@ -4,7 +4,7 @@ Datenbank-Modelle.
 SQLModel kombiniert SQLAlchemy (DB) + Pydantic (Validierung).
 """
 
-from datetime import datetime, timedelta, timezone
+from datetime import date, datetime, timedelta, timezone
 from enum import Enum
 from typing import Optional
 
@@ -148,6 +148,10 @@ class Document(SQLModel, table=True):
     # SHA-256 Hash der Datei-Bytes (Phase 3c+) — für Duplikatsprüfung
     # pro Sammlung. Bestehende Dokumente vor diesem Feature haben None.
     content_hash: Optional[str] = Field(default=None, index=True)
+    # Archiv: archivierte Dokumente sind aus Suche und Listen raus, das
+    # Original bleibt erhalten und laesst sich wiederherstellen.
+    archived_at: Optional[datetime] = Field(default=None, index=True)
+    archived_by: Optional[str] = Field(default=None)
 
 
 class DocumentCollection(SQLModel, table=True):
@@ -167,6 +171,14 @@ class DocumentCollection(SQLModel, table=True):
     created_by: str = Field(index=True)
     # Mandantentrennung: Standard geschlossen, nur Besitzer + Mitglieder
     open_for_all: bool = Field(default=False)
+    # Archiv und Aufbewahrung
+    archived_at: Optional[datetime] = Field(default=None, index=True)
+    archived_by: Optional[str] = Field(default=None)
+    # Aufbewahren bis: None = unbekannt = KEIN endgueltiges Loeschen moeglich
+    retain_until: Optional[date] = Field(default=None)
+    # Loeschsperre (Legal Hold): blockiert endgueltiges Loeschen unabhaengig von der Frist
+    legal_hold: bool = Field(default=False)
+    legal_hold_reason: Optional[str] = Field(default=None)
     created_at: datetime = Field(
         default_factory=lambda: datetime.now(timezone.utc)
     )
@@ -212,6 +224,32 @@ class CollectionMember(SQLModel, table=True):
     )
 
 
+class DeletionRecord(SQLModel, table=True):
+    """
+    Loeschnachweis: belegt, DASS und WARUM etwas endgueltig geloescht wurde,
+    ohne den Inhalt selbst aufzubewahren (Namen, Anzahl, Pruefsummen).
+
+    Analogie: das Vernichtungsprotokoll des Aktenvernichters -- welche
+    Akten, wie viele, auf wessen Antrag, wer hat zugestimmt, wann.
+    """
+
+    __tablename__ = "deletion_records"
+
+    id: Optional[int] = Field(default=None, primary_key=True)
+    object_type: str = Field(default="collection")   # collection (spaeter: document)
+    collection: str = Field(index=True)
+    document_count: int = 0
+    chunk_count: int = 0
+    size_bytes: int = 0
+    content_hashes: str = Field(default="[]")        # JSON-Liste der SHA-256
+    retain_until: Optional[date] = None
+    requested_by: str
+    approved_by: Optional[str] = None
+    approval_id: Optional[int] = None
+    reason: Optional[str] = None
+    deleted_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+
 class AuditAction(str, Enum):
     """
     Auditierte Aktionen.
@@ -245,6 +283,15 @@ class AuditAction(str, Enum):
     COLLECTION_ACCESS_REVOKED = "collection_access_revoked"
     COLLECTION_VISIBILITY_CHANGED = "collection_visibility_changed"
     COLLECTION_OWNER_CHANGED = "collection_owner_changed"
+
+    # Archiv, Aufbewahrung, Loeschung
+    DOCUMENT_ARCHIVED = "document_archived"
+    DOCUMENT_RESTORED = "document_restored"
+    COLLECTION_ARCHIVED = "collection_archived"
+    COLLECTION_RESTORED = "collection_restored"
+    RETENTION_CHANGED = "retention_changed"
+    LEGAL_HOLD_CHANGED = "legal_hold_changed"
+    COLLECTION_PURGED = "collection_purged"
 
     # Chat / LLM
     CHAT_QUERY = "chat_query"
