@@ -94,6 +94,7 @@ class ToolRegistry:
         return [
             tool for tool in cls._tools.values()
             if role in tool.allowed_roles
+            and getattr(tool, "llm_callable", True)   # z.B. Loeschwerkzeug nie fuers Modell
         ]
 
     @classmethod

@@ -72,8 +72,9 @@ def _register_tools() -> None:
     from app.tools.registry import ToolRegistry
     from app.tools.search_documents import SearchDocumentsTool
     from app.tools.regulation_import import RegulationImportTool
+    from app.tools.collection_purge import CollectionPurgeTool
 
-    for tool in (SearchDocumentsTool(), RegulationImportTool()):
+    for tool in (SearchDocumentsTool(), RegulationImportTool(), CollectionPurgeTool()):
         if ToolRegistry.get(tool.name) is None:
             ToolRegistry.register(tool)
 

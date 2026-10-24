@@ -36,6 +36,12 @@ class IndustryProfile:
     allow_cloud_models: bool    # Duerfen Daten das eigene Netz verlassen?
     default_model: str | None   # Vorgabe-Modell; None = settings.default_model
 
+    # Vorgabe fuer die Aufbewahrungsfrist neuer Sammlungen in Jahren.
+    # None = unbekannt = kein endgueltiges Loeschen. Ausnahme vom Prinzip
+    # "Policy ohne Default", weil "unbekannt" hier der sichere Zustand ist.
+    # Konkrete Werte muessen Fachleute der Branche festlegen.
+    default_retention_years: int | None = None
+
     is_default: bool = False
 
 

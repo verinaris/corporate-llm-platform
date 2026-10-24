@@ -169,7 +169,7 @@ def dsgvo_full_delete(
 
     **Was passiert:**
     1. User-Datensatz: E-Mail + Hash gelöscht (Pseudonym bleibt für Foreign-Keys)
-    2. Documents des Users: vollständig gelöscht
+    2. Documents des Users: archiviert (raus aus dem Suchindex), Personenbezug pseudonymisiert
     3. BusinessPlans des Users: vollständig gelöscht
     4. TokenUsage-Einträge: user_id auf "deleted_<id>" gesetzt
     5. AuditLog-Einträge: user_email auf "deleted_user_<id>" gesetzt
@@ -189,13 +189,47 @@ def dsgvo_full_delete(
     pseudonym = f"deleted_user_{user_id}"
     original_email = target.email
 
-    # 1. Dokumente löschen
+    # 1. Dokumente ARCHIVIEREN statt loeschen: Aufbewahrungsfrist und
+    #    Loeschsperre gelten weiter, der Personenbezug wird pseudonymisiert.
+    #    Vorher wurde nur die DB-Zeile geloescht: Textstuecke im Suchindex und
+    #    Originaldatei blieben liegen und beantworteten weiter Fragen.
+    from datetime import datetime as _dt, timezone as _tz
+
+    from app.models import CollectionMember, DocumentCollection
+    from app.services.archive import remove_from_index
+
+    jetzt = _dt.now(_tz.utc)
     docs = session.exec(
         select(Document).where(Document.uploaded_by == original_email)
     ).all()
     deleted_docs = len(docs)
     for d in docs:
-        session.delete(d)
+        if d.archived_at is None:
+            try:
+                remove_from_index(d)
+            except Exception as exc:
+                raise HTTPException(
+                    500, detail=f"Suchindex nicht erreichbar, DSGVO-Löschung abgebrochen: {exc}"
+                ) from exc
+            d.archived_at = jetzt
+            d.archived_by = admin.email
+        d.uploaded_by = pseudonym
+        session.add(d)
+    for d in session.exec(select(Document).where(Document.archived_by == original_email)).all():
+        d.archived_by = pseudonym
+        session.add(d)
+    for c in session.exec(select(DocumentCollection)).all():
+        if c.created_by == original_email:
+            c.created_by = pseudonym   # Sammlung wird verwaist, Besitz uebertragbar
+            session.add(c)
+        if c.archived_by == original_email:
+            c.archived_by = pseudonym
+            session.add(c)
+    for m in session.exec(
+        select(CollectionMember).where(CollectionMember.granted_by == original_email)
+    ).all():
+        m.granted_by = pseudonym
+        session.add(m)
 
     # 2. Businessplans löschen
     plans = session.exec(
