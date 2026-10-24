@@ -7,7 +7,8 @@ Vernichtet wird nur ein Karton, der im Archiv steht, dessen Frist abgelaufen
 ist und der keinen roten Aufkleber hat. Und auch dann nur mit Vier-Augen-Freigabe.
 """
 
-from datetime import date
+import json
+from datetime import date, datetime, timezone
 from typing import Optional
 
 from fastapi import HTTPException
@@ -110,3 +111,50 @@ def set_legal_hold(session: Session, coll: DocumentCollection, user: User,
               target_type="collection", target_id=coll.name,
               details={"old": old, "new": hold, "reason": reason})
     return coll
+
+
+# ----------------------------------------------------------------------- #
+# Endgueltiges Loeschen: Antrag (Vier-Augen) und Loeschnachweise
+# ----------------------------------------------------------------------- #
+
+def request_purge(session: Session, coll: DocumentCollection, user: User, reason: str) -> dict:
+    """Legt einen Loeschantrag an. Geloescht wird erst nach Freigabe durch eine andere Person."""
+    from app.models import ApprovalStatus, PendingApproval
+    from app.tools.collection_purge import TOOL_NAME, CollectionPurgeTool
+    from app.tools.registry import ApprovalPendingError, ToolRegistry
+
+    reason = _reason(reason)
+    status = purge_status(coll)
+    if status != "loeschbar":
+        raise HTTPException(409, detail=f"Endgültiges Löschen nicht möglich: {STATUS_LABELS[status]}.")
+    offen = session.exec(select(PendingApproval).where(
+        PendingApproval.tool_name == TOOL_NAME, PendingApproval.status == ApprovalStatus.PENDING)).all()
+    if any(json.loads(r.params_json).get("collection") == coll.name for r in offen):
+        raise HTTPException(409, detail="Für diese Sammlung liegt bereits ein offener Löschantrag vor.")
+
+    if ToolRegistry.get(TOOL_NAME) is None:
+        ToolRegistry.register(CollectionPurgeTool())
+    params = {"collection": coll.name, "requested_at": datetime.now(timezone.utc).isoformat()}
+    try:
+        ToolRegistry.execute(TOOL_NAME, params, user_id=user.id,
+                             user_role=_role(user), user_email=user.email)
+    except ApprovalPendingError as pending:
+        req = session.get(PendingApproval, pending.request_id)
+        req.reason = reason
+        session.add(req)
+        session.commit()
+        return {"approval_id": pending.request_id, "status": "pending", "collection": coll.name}
+    raise HTTPException(500, detail="Der Löschantrag konnte nicht angelegt werden.")
+
+
+def deletion_records(session: Session) -> list[dict]:
+    from app.models import DeletionRecord
+
+    rows = session.exec(select(DeletionRecord).order_by(DeletionRecord.deleted_at.desc())).all()
+    return [{
+        "id": r.id, "object_type": r.object_type, "collection": r.collection,
+        "document_count": r.document_count, "chunk_count": r.chunk_count, "size_bytes": r.size_bytes,
+        "content_hashes": json.loads(r.content_hashes or "[]"), "retain_until": r.retain_until,
+        "requested_by": r.requested_by, "approved_by": r.approved_by, "approval_id": r.approval_id,
+        "reason": r.reason, "deleted_at": r.deleted_at,
+    } for r in rows]

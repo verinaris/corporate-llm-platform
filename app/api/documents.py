@@ -779,6 +779,33 @@ def set_collection_legal_hold(
     return retention_svc.overview_entry(session, coll)
 
 
+class PurgeRequestIn(BaseModel):
+    reason: str = Field(..., min_length=1, max_length=1000)
+
+
+@router.post("/collections/{name}/purge-request", status_code=status.HTTP_202_ACCEPTED)
+def request_collection_purge(
+    name: str,
+    payload: PurgeRequestIn,
+    user: User = Depends(get_current_user),
+    session: Session = Depends(get_session),
+) -> dict:
+    """Antrag auf endgueltiges Loeschen (nur bei Status 'loeschbar', Vier-Augen)."""
+    retention_svc.require_retention_manager(user)
+    coll = retention_svc.get_collection_or_404(session, _validate_collection_name(name))
+    return retention_svc.request_purge(session, coll, user, payload.reason)
+
+
+@router.get("/deletion-records")
+def list_deletion_records(
+    user: User = Depends(get_current_user),
+    session: Session = Depends(get_session),
+) -> list[dict]:
+    """Loeschnachweise: was, wie viel, wann, auf wessen Antrag, wer hat freigegeben."""
+    retention_svc.require_retention_manager(user)
+    return retention_svc.deletion_records(session)
+
+
 @router.get("/search", response_model=SearchResponse)
 def search_documents(
     q: str,
