@@ -520,6 +520,53 @@ class APIClient:
             },
         )
 
+    # ------------------------------------------------------------------ #
+    # Archiv und Aufbewahrung
+    # ------------------------------------------------------------------ #
+    def _req(self, method: str, path: str, json: Any = None, timeout: int = 60) -> Any:
+        import requests
+
+        base = getattr(self, "base_url", BACKEND_URL)
+        r = requests.request(method, f"{base}{path}", headers=self._headers(),
+                             json=json, timeout=timeout)
+        if r.status_code >= 400:
+            try:
+                detail = r.json().get("detail", r.text)
+            except Exception:
+                detail = r.text
+            raise APIError(r.status_code, str(detail))
+        return r.json() if r.content else {}
+
+    def list_archive(self) -> dict[str, Any]:
+        return self._req("GET", "/documents/archive")
+
+    def archive_collection(self, name: str) -> dict[str, Any]:
+        return self._req("POST", f"/documents/collections/{name}/archive")
+
+    def restore_collection(self, name: str) -> dict[str, Any]:
+        return self._req("POST", f"/documents/collections/{name}/restore")
+
+    def restore_document(self, document_id: int) -> dict[str, Any]:
+        return self._req("POST", f"/documents/{document_id}/restore", timeout=300)
+
+    def list_retention(self) -> list[dict[str, Any]]:
+        return self._req("GET", "/documents/retention")
+
+    def set_retention(self, name: str, retain_until: Optional[str], reason: str) -> dict[str, Any]:
+        return self._req("PUT", f"/documents/collections/{name}/retention",
+                         json={"retain_until": retain_until, "reason": reason})
+
+    def set_legal_hold(self, name: str, legal_hold: bool, reason: str) -> dict[str, Any]:
+        return self._req("PUT", f"/documents/collections/{name}/legal-hold",
+                         json={"legal_hold": legal_hold, "reason": reason})
+
+    def request_purge(self, name: str, reason: str) -> dict[str, Any]:
+        return self._req("POST", f"/documents/collections/{name}/purge-request",
+                         json={"reason": reason})
+
+    def list_deletion_records(self) -> list[dict[str, Any]]:
+        return self._req("GET", "/documents/deletion-records")
+
     def _get(self, path: str, timeout: int = 10) -> dict[str, Any]:
         try:
             r = httpx.get(

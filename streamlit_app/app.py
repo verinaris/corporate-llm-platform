@@ -388,6 +388,8 @@ with st.sidebar:
     if rolle == "admin":
         nav_options.append("👥 Benutzer")
         nav_options.append("🔐 Zugriffsrechte")
+    if user.get("role") in ("admin", "compliance-officer"):
+        nav_options.append("🗄️ Aufbewahrung")
     page_label = st.radio(
         "Navigation",
         nav_options,
@@ -576,3 +578,6 @@ elif page_label == "👥 Benutzer":
 elif page_label == "🔐 Zugriffsrechte":
     from streamlit_app.views import access_page
     access_page.render()
+elif page_label == "🗄️ Aufbewahrung":
+    from streamlit_app.views import retention_page
+    retention_page.render()

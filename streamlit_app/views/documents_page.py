@@ -4,7 +4,7 @@ Documents-Seite (Phase 3a–3c).
 Admin/Compliance-Officer:
 - PDFs hochladen (mit Phasen-Status-Anzeige in Echtzeit)
 - Sammlungen anlegen mit Beschreibung + Tags
-- Dokumente löschen
+- Dokumente und Sammlungen archivieren und wiederherstellen
 - Beschreibung nachträglich bearbeiten
 
 Alle anderen User:
@@ -68,18 +68,24 @@ def render() -> None:
     if not is_privileged:
         st.warning(
             "🔒 Nur **Admin** und **Compliance-Officer** dürfen Dokumente "
-            "hochladen oder löschen. Sie können weiterhin Sammlungen im Chat nutzen."
+            "hochladen oder archivieren. Sie können weiterhin Sammlungen im Chat nutzen."
         )
 
     client = APIClient(token=st.session_state.get("token"))
 
-    tab_upload, tab_browse = st.tabs(["⬆️ Upload", "📂 Sammlungen"])
+    if "docs_msg" in st.session_state:
+        st.success(st.session_state.pop("docs_msg"))
+
+    tab_upload, tab_browse, tab_archive = st.tabs(["⬆️ Upload", "📂 Sammlungen", "🗄️ Archiv"])
 
     with tab_upload:
         _render_upload(client, is_privileged)
 
     with tab_browse:
         _render_collections(client, role)
+
+    with tab_archive:
+        _render_archive(client)
 
 
 # ----------------------------------------------------------------------- #
@@ -300,8 +306,9 @@ def _do_upload_with_phases(
             f"- **Dateiname (gespeichert):** {duplicate_info.get('filename', '?')}\n"
             f"- **Hochgeladen am:** {uploaded_pretty}\n"
             f"- **Von:** {duplicate_info.get('uploaded_by', '?')}\n\n"
-            f"Tipp: Wählen Sie eine andere Sammlung oder löschen Sie die bestehende "
-            f"Datei zuerst (Tab → 📂 Sammlungen)."
+            f"Tipp: Wählen Sie eine andere Sammlung oder archivieren Sie die bestehende "
+            f"Datei zuerst (Tab → 📂 Sammlungen). Liegt sie bereits im Archiv, stellen "
+            f"Sie sie dort wieder her (Tab → 🗄️ Archiv)."
         )
         return
 
@@ -357,6 +364,8 @@ def _render_collections(client: APIClient, role: str) -> None:
             if role in ("admin", "compliance-officer"):
                 with st.expander("✏️ Beschreibung & Tags bearbeiten"):
                     _render_collection_editor(client, coll)
+                with st.expander("🗄️ Sammlung archivieren"):
+                    _render_archive_collection(client, coll)
 
             with st.expander("Dokumente anzeigen"):
                 _render_documents_in_collection(client, coll["name"], role)
@@ -418,15 +427,86 @@ def _render_documents_in_collection(
         )
         cols[2].caption(f"von {doc['uploaded_by']}")
         if can_delete:
-            if cols[3].button("🗑", key=f"del-{doc['id']}", help="Löschen"):
+            if cols[3].button("🗄", key=f"del-{doc['id']}", help="Archivieren (wiederherstellbar)"):
                 _delete_document(client, doc)
 
 
 def _delete_document(client: APIClient, doc: dict[str, Any]) -> None:
+    """Archivieren, das "Loeschen" im Alltag: raus aus Chat und Suche, wiederherstellbar."""
+    _act(lambda: client.delete_document(doc["id"]),
+         f"🗄 Archiviert: {doc['original_filename']}. Wiederherstellen im Reiter 🗄️ Archiv.")
+
+
+def _act(action, erfolg: str) -> None:
     try:
-        client.delete_document(doc["id"])
-        st.success(f"🗑 Gelöscht: {doc['original_filename']}")
-        st.session_state.pop("_collections_cache", None)
-        st.rerun()
+        action()
     except APIError as exc:
-        st.error(f"Löschen fehlgeschlagen: {exc.detail}")
+        st.error(f"Fehlgeschlagen: {exc.detail}")
+        return
+    st.session_state["docs_msg"] = erfolg
+    st.session_state.pop("_collections_cache", None)
+    st.rerun()
+
+
+def _datum(iso) -> str:
+    if not iso:
+        return ""
+    from datetime import date as _date
+    try:
+        return _date.fromisoformat(str(iso)[:10]).strftime("%d.%m.%Y")
+    except ValueError:
+        return str(iso)
+
+
+def _render_archive_collection(client: APIClient, coll: dict[str, Any]) -> None:
+    name = coll["name"]
+    st.caption(
+        "Die Sammlung verschwindet für alle aus Chat, Suche und Listen. Gelöscht wird "
+        "nichts, Wiederherstellen ist im Reiter 🗄️ Archiv jederzeit möglich."
+    )
+    ok = st.checkbox(f"Ich will '{name}' archivieren", key=f"arch-ok-{name}")
+    if st.button("🗄️ Archivieren", key=f"arch-{name}", disabled=not ok):
+        _act(lambda: client.archive_collection(name),
+             f"🗄️ Sammlung '{name}' archiviert. Wiederherstellen im Reiter 🗄️ Archiv.")
+
+
+def _render_archive(client: APIClient) -> None:
+    st.subheader("Archiv")
+    st.caption(
+        "Archivierte Sammlungen und Dokumente sind aus Chat und Suche raus, aber nicht "
+        "gelöscht. Endgültig gelöscht wird nur nach Ablauf der Aufbewahrungsfrist und "
+        "mit Vier-Augen-Freigabe (Seite 🗄️ Aufbewahrung)."
+    )
+    try:
+        data = client.list_archive()
+    except APIError as exc:
+        st.error(f"Archiv konnte nicht geladen werden: {exc.detail}")
+        return
+    colls, docs = data.get("collections", []), data.get("documents", [])
+    if not colls and not docs:
+        st.info("Das Archiv ist leer.")
+        return
+
+    if colls:
+        st.markdown("**Sammlungen**")
+        for c in colls:
+            cols = st.columns([3, 4, 2])
+            cols[0].markdown(f"📁 `{c['name']}`  \n{c['document_count']} Dokument(e)")
+            cols[1].caption(
+                f"archiviert am {_datum(c['archived_at'])} von {c['archived_by']}  \n"
+                f"aufbewahren bis: {_datum(c.get('retain_until')) or 'unbekannt'}"
+                + ("  ·  🔒 Löschsperre" if c.get("legal_hold") else "")
+            )
+            if c.get("can_restore") and cols[2].button("↩️ Wiederherstellen", key=f"rc-{c['name']}"):
+                _act(lambda: client.restore_collection(c["name"]),
+                     f"↩️ Sammlung '{c['name']}' wiederhergestellt.")
+
+    if docs:
+        st.markdown("**Einzelne Dokumente**")
+        for d in docs:
+            cols = st.columns([3, 4, 2])
+            cols[0].markdown(f"**{d['original_filename']}**  \n`{d['collection']}`")
+            cols[1].caption(f"archiviert am {_datum(d['archived_at'])} von {d['archived_by']}")
+            if d.get("can_restore") and cols[2].button("↩️ Wiederherstellen", key=f"rd-{d['id']}"):
+                _act(lambda: client.restore_document(d["id"]),
+                     f"↩️ Wiederhergestellt: {d['original_filename']} (neu eingelesen).")
