@@ -135,7 +135,7 @@ def _find_duplicate(
     ).first()
 
 
-def _duplicate_detail_message(existing: Document, collection: str) -> str:
+def _duplicate_message_active(existing: Document, collection: str) -> str:
     """Baut die User-Fehlermeldung für ein Duplikat."""
     when = existing.uploaded_at.strftime("%d.%m.%Y")
     return (
@@ -148,6 +148,15 @@ def _duplicate_detail_message(existing: Document, collection: str) -> str:
 # ----------------------------------------------------------------------- #
 # Upload (klassisch — bleibt für Swagger / einfache Clients)
 # ----------------------------------------------------------------------- #
+
+
+def _duplicate_detail_message(existing: Document, collection: str) -> str:
+    """Wie oben, aber mit Hinweis, wenn das vorhandene Dokument im Archiv liegt."""
+    if existing.archived_at is not None:
+        return (f"Dieses Dokument liegt bereits im Archiv der Sammlung '{collection}' "
+                f"(„{existing.original_filename}“). Bitte dort wiederherstellen statt neu hochladen.")
+    return _duplicate_message_active(existing, collection)
+
 
 @router.post(
     "",
@@ -525,7 +534,7 @@ def list_documents(
     session: Session = Depends(get_session),
 ) -> list[DocumentOut]:
     """Alle Dokumente (optional nach Sammlung gefiltert)."""
-    query = select(Document)
+    query = select(Document).where(Document.archived_at.is_(None))
     if collection:
         name = _validate_collection_name(collection)
         require_collection_access(session, user, name, need="read")
@@ -550,7 +559,7 @@ def list_collections(
     session: Session = Depends(get_session),
 ) -> list[CollectionStats]:
     """Alle Sammlungen samt Statistik + Beschreibung."""
-    docs = session.exec(select(Document)).all()
+    docs = session.exec(select(Document).where(Document.archived_at.is_(None))).all()
     by_coll: dict[str, list[Document]] = {}
     for d in docs:
         by_coll.setdefault(d.collection, []).append(d)
@@ -648,6 +657,73 @@ def update_collection(
 # Search
 # ----------------------------------------------------------------------- #
 
+# ----------------------------------------------------------------------- #
+# Archiv (steht VOR /{document_id}, sonst faengt diese Route "/archive" ab)
+# ----------------------------------------------------------------------- #
+
+from app.auth.permissions import can_maintain_collection as _can_maintain  # noqa: E402
+from app.services import archive as archive_svc  # noqa: E402
+from app.services.collection_access import _log_denied, get_collection_level  # noqa: E402
+
+
+@router.get("/archive")
+def list_archive(
+    user: User = Depends(get_current_user),
+    session: Session = Depends(get_session),
+) -> dict:
+    """Archivierte Sammlungen und Dokumente, die der User sehen darf."""
+    return archive_svc.archive_listing(session, user)
+
+
+@router.post(
+    "/collections/{name}/archive",
+    response_model=CollectionInfo,
+    dependencies=[Depends(require_admin_or_compliance)],
+)
+def archive_collection(
+    name: str,
+    user: User = Depends(get_current_user),
+    session: Session = Depends(get_session),
+) -> CollectionInfo:
+    name = _validate_collection_name(name)
+    require_collection_access(session, user, name, need="maintain")
+    coll = session.get(DocumentCollection, name)
+    return CollectionInfo.from_db(archive_svc.archive_collection(session, coll, user))
+
+
+@router.post(
+    "/collections/{name}/restore",
+    response_model=CollectionInfo,
+    dependencies=[Depends(require_admin_or_compliance)],
+)
+def restore_collection(
+    name: str,
+    user: User = Depends(get_current_user),
+    session: Session = Depends(get_session),
+) -> CollectionInfo:
+    name = _validate_collection_name(name)
+    coll = session.get(DocumentCollection, name)
+    level = get_collection_level(session, user, name, include_archived=True)
+    if coll is None or not _can_maintain(level):
+        _log_denied(user, name, "maintain")
+        raise HTTPException(403, detail=f"Kein Zugriff auf die Sammlung '{name}'.")
+    return CollectionInfo.from_db(archive_svc.restore_collection(session, coll, user))
+
+
+@router.post(
+    "/{document_id}/restore",
+    response_model=DocumentOut,
+    dependencies=[Depends(require_admin_or_compliance)],
+)
+def restore_document(
+    document_id: int,
+    user: User = Depends(get_current_user),
+    session: Session = Depends(get_session),
+) -> DocumentOut:
+    doc = _doc_with_access(session, user, document_id, "maintain", allow_archived=True)
+    return DocumentOut.from_document(archive_svc.restore_document(session, doc, user))
+
+
 @router.get("/search", response_model=SearchResponse)
 def search_documents(
     q: str,
@@ -681,7 +757,9 @@ def search_documents(
 # Einzelnes Dokument + File-Download (Phase 3c)
 # ----------------------------------------------------------------------- #
 
-def _doc_with_access(session: Session, user: User, document_id: int, need: str) -> Document:
+def _doc_with_access(
+    session: Session, user: User, document_id: int, need: str, allow_archived: bool = False
+) -> Document:
     """
     Dokument laden und Zugriff pruefen (Mandantentrennung).
 
@@ -690,7 +768,7 @@ def _doc_with_access(session: Session, user: User, document_id: int, need: str) 
     (COLLECTION_ACCESS_DENIED) schreibt require_collection_access trotzdem.
     """
     doc = session.get(Document, document_id)
-    if not doc:
+    if not doc or (doc.archived_at is not None and not allow_archived):
         raise HTTPException(404, detail="Dokument nicht gefunden")
     try:
         require_collection_access(session, user, doc.collection, need=need)
@@ -740,21 +818,12 @@ def delete_document(
     user: User = Depends(get_current_user),
     session: Session = Depends(get_session),
 ) -> DocumentOut:
-    """Löscht das Dokument: DB-Eintrag, ChromaDB-Chunks, Original-Datei."""
+    """
+    Archiviert das Dokument (das einzige "Loeschen" im Alltag).
+
+    Textstuecke raus aus dem Suchindex, Originaldatei und Eintrag bleiben,
+    Wiederherstellen jederzeit moeglich. Endgueltig geloescht wird nur ueber
+    die Aufbewahrungsfrist mit Vier-Augen-Freigabe.
+    """
     doc = _doc_with_access(session, user, document_id, "maintain")
-
-    try:
-        get_document_store().delete_by_document_id(doc.collection, doc.id or 0)
-    except Exception:
-        pass
-
-    if doc.stored_path:
-        try:
-            Path(doc.stored_path).unlink(missing_ok=True)
-        except Exception:
-            pass
-
-    out = DocumentOut.from_document(doc)
-    session.delete(doc)
-    session.commit()
-    return out
+    return DocumentOut.from_document(archive_svc.archive_document(session, doc, user))

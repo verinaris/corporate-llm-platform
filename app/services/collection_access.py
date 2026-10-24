@@ -17,10 +17,18 @@ from app.auth.permissions import can_read_collection, collection_level
 from app.models import CollectionMember, DocumentCollection, User
 
 
-def get_collection_level(session: Session, user: User, name: str) -> Optional[str]:
-    """Stufe des Users fuer die Sammlung: owner/maintain/read oder None."""
+def get_collection_level(
+    session: Session, user: User, name: str, include_archived: bool = False
+) -> Optional[str]:
+    """
+    Stufe des Users fuer die Sammlung: owner/maintain/read oder None.
+
+    Archivierte Sammlungen gelten als nicht vorhanden (None). Damit sind sie
+    ueberall raus: Chat, Suche, Listen, Upload, Tools. Nur die Archiv-Ansicht
+    und das Wiederherstellen fragen mit include_archived=True.
+    """
     coll = session.get(DocumentCollection, name)
-    if coll is None:
+    if coll is None or (coll.archived_at is not None and not include_archived):
         return None
     member = session.exec(
         select(CollectionMember).where(
@@ -48,7 +56,7 @@ def readable_collections(session: Session, user: User) -> set[str]:
     return {
         c.name
         for c in collections
-        if can_read_collection(
+        if c.archived_at is None and can_read_collection(
             collection_level(user.email, c.created_by, members.get(c.name), c.open_for_all)
         )
     }
@@ -110,8 +118,16 @@ def require_upload_target(session: Session, user: User, name: str) -> str:
     Neue Sammlung: ja, er wird ihr Besitzer (siehe _upsert_collection_meta).
     Bestehende Sammlung: nur mit Stufe 'maintain' oder als Besitzer.
     """
-    if session.get(DocumentCollection, name) is None:
+    coll = session.get(DocumentCollection, name)
+    if coll is None:
         return "new"
+    if coll.archived_at is not None and _allowed(
+        get_collection_level(session, user, name, include_archived=True), "read"
+    ):
+        raise HTTPException(
+            status_code=409,
+            detail=f"Die Sammlung '{name}' ist archiviert. Bitte erst wiederherstellen.",
+        )
     return require_collection_access(session, user, name, need="maintain")
 
 
